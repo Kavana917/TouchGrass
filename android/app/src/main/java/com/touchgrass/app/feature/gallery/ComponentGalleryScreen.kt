@@ -80,8 +80,7 @@ fun ComponentGalleryScreen(
                     titleIcon = PixelIcons.Folder,
                     menuItems = listOf("File", "Edit", "View", "Help"),
                     statusText = "10 components",
-                    statusSecondary = if (isNight) "night" else "day",
-                    onClose = { }
+                    statusSecondary = if (isNight) "night" else "day"
                 ) {
                     BodyText(
                         "Every form in the design system. Body copy is sans " +
@@ -100,9 +99,18 @@ fun ComponentGalleryScreen(
                     PixelText("Hold one — the bevel inverts and the label shifts.")
                 }
 
-                // ---- 3. Inactive title bar ----
-                Section("Title bar — inactive") {
+                // ---- 3. Title bars ----
+                Section("Title bars") {
+                    TitleBar(
+                        title = "Active Window",
+                        icon = PixelIcons.Clock,
+                        active = true,
+                        onMinimize = { },
+                        onMaximize = { },
+                        onClose = { }
+                    )
                     TitleBar(title = "Background Window", active = false)
+                    PixelText("Active is navy; inactive goes gray.")
                 }
 
                 // ---- 4. Fields ----

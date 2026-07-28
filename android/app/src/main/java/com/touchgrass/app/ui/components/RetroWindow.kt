@@ -48,10 +48,16 @@ fun RetroWindow(
             MenuBar(items = menuItems, onItemClick = onMenuItemClick)
         }
 
+        // NOTE: no Modifier.weight() here, deliberately.
+        //
+        // Weight distributes *remaining* space, which is undefined when the
+        // window sits inside a verticalScroll (unbounded height) — every
+        // content area collapses to zero and you get a stack of bare title
+        // bars. Wrapping content is also the correct behaviour anyway: a
+        // window should be as tall as what's in it.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f, fill = false)
                 .padding(Dimens.WindowPadding),
             content = content
         )
