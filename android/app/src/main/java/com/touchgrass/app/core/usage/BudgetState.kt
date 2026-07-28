@@ -24,10 +24,23 @@ enum class BudgetUrgency(val pollIntervalMillis: Long) {
     /** Under 5 minutes. Getting ready to fire. */
     APPROACHING(2_000L),
 
-    /** Zero. The wall is armed and needs to land before they're absorbed. */
+    /** Zero, and they're in the app. The wall needs to land immediately. */
     ARMED(1_000L),
 
-    /** Screen off, or no watched app in the foreground. Costs nothing. */
+    /**
+     * Zero, but they're somewhere else right now.
+     *
+     * This state exists because of a real bug: it used to fall through to
+     * [IDLE], so after the budget was spent we checked once every 30 seconds.
+     * Switching to Instagram then meant up to half a minute of scrolling
+     * before anything noticed — long enough to look completely broken.
+     *
+     * When the wall is loaded, the moment we're waiting for is the app
+     * switch itself, so we have to be watching for it.
+     */
+    WAITING(2_000L),
+
+    /** Screen off, or time left and not in a watched app. Costs nothing. */
     IDLE(30_000L)
 }
 
@@ -90,11 +103,26 @@ data class BudgetState(
         BudgetMode.PER_APP -> budgetFor(packageName)?.isSpent ?: false
     }
 
+    /** True if any watched app has run out — i.e. a wall is loaded. */
+    val anyAppSpent: Boolean
+        get() = when (mode) {
+            BudgetMode.SHARED -> isSpent
+            BudgetMode.PER_APP -> appBudgets.any { it.isSpent }
+        }
+
     val urgency: BudgetUrgency
         get() = when {
-            !screenOn || !watchedAppInForeground -> BudgetUrgency.IDLE
-            isSpentFor(foregroundPackage) -> BudgetUrgency.ARMED
-            remainingMinutes <= 5 -> BudgetUrgency.APPROACHING
-            else -> BudgetUrgency.RELAXED
+            // Screen off is the only genuinely idle state — nothing can
+            // change until it comes back on.
+            !screenOn -> BudgetUrgency.IDLE
+
+            watchedAppInForeground && isSpentFor(foregroundPackage) -> BudgetUrgency.ARMED
+            watchedAppInForeground && remainingMinutes <= 5 -> BudgetUrgency.APPROACHING
+            watchedAppInForeground -> BudgetUrgency.RELAXED
+
+            // Elsewhere, but a wall is loaded: watch for the app switch.
+            anyAppSpent -> BudgetUrgency.WAITING
+
+            else -> BudgetUrgency.IDLE
         }
 }

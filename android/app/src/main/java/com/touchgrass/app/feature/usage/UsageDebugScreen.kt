@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -34,6 +35,9 @@ import com.touchgrass.app.ui.components.Taskbar
 import com.touchgrass.app.ui.components.Wallpaper
 import com.touchgrass.app.ui.theme.Dimens
 import com.touchgrass.app.ui.theme.RetroTheme
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Phase 2 debug screen — scaffolding, not product.
@@ -58,6 +62,7 @@ fun UsageDebugScreen(
     val apps by viewModel.installedApps.collectAsStateWithLifecycle()
     val foreground by viewModel.liveForeground.collectAsStateWithLifecycle()
     val diag by viewModel.monitorDiagnostics.collectAsStateWithLifecycle()
+    val timeFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
 
     // Permissions are granted on Settings screens we get no callback from,
     // so re-check whenever this screen comes back to the foreground.
@@ -254,9 +259,7 @@ fun UsageDebugScreen(
                     CheckLine("Overlay permission", diag.overlayPermitted)
                     CheckLine("Monitor polling", diag.pollCount > 0L)
                     CheckLine("Screen on", diag.screenOn)
-                    CheckLine("Watched app in front", diag.watchedInForeground)
                     CheckLine("Time spent", diag.remainingMinutes == 0)
-                    CheckLine("→ wall should show", diag.shouldShowWall)
 
                     PixelText("foreground: ${diag.foregroundPackage?.takeLast(28) ?: "—"}")
                     PixelText("remaining: ${diag.remainingMinutes} min")
@@ -265,6 +268,41 @@ fun UsageDebugScreen(
                         GrooveSeparator()
                         PixelText("last error:", color = RetroTheme.colors.accentRed)
                         BodyText(diag.lastError!!, style = RetroTheme.typography.bodySmall)
+                    }
+
+                    GrooveSeparator()
+
+                    // The live lines above can only ever describe THIS moment
+                    // — when TouchGrass is what's on screen. The log is the
+                    // only way to see what happened while you were in
+                    // Instagram.
+                    PixelText("recent polls")
+                    BodyText(
+                        "Go to Instagram, come back, and read this.",
+                        style = RetroTheme.typography.bodySmall
+                    )
+                    if (diag.recentPolls.isEmpty()) {
+                        PixelText("— nothing yet —")
+                    } else {
+                        diag.recentPolls.forEach { poll ->
+                            PixelText(
+                                text = buildString {
+                                    append(timeFormat.format(Date(poll.at)))
+                                    append("  ")
+                                    append(poll.foregroundPackage?.substringAfterLast('.') ?: "—")
+                                    append("  ")
+                                    append("${poll.remainingMinutes}m")
+                                    if (poll.shouldShowWall) append("  WALL")
+                                    if (poll.wallShowing) append(" UP")
+                                },
+                                color = if (poll.shouldShowWall) {
+                                    RetroTheme.colors.accentRed
+                                } else {
+                                    RetroTheme.colors.bodyText
+                                },
+                                maxLines = 1
+                            )
+                        }
                     }
 
                     GrooveSeparator()
