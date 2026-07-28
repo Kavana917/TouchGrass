@@ -4,14 +4,38 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private val Context.dataStore by preferencesDataStore(name = "touchgrass_settings")
+
+/**
+ * How the daily allowance is divided (app_plan.md §2.6).
+ *
+ * [SHARED] is the default on purpose: with one pool, hopping Instagram →
+ * TikTok → Reddit gives you the same total time, not three times as much.
+ * That property is the whole reason the shared budget exists.
+ *
+ * [PER_APP] is the advanced option for people who genuinely want different
+ * limits per app — 20 minutes of Instagram but an hour of YouTube. It gives
+ * up the anti-hopping guarantee in exchange for precision, which is a real
+ * trade and should be a deliberate choice.
+ */
+enum class BudgetMode {
+    SHARED,
+    PER_APP;
+
+    companion object {
+        fun fromName(name: String?): BudgetMode =
+            entries.firstOrNull { it.name == name } ?: SHARED
+    }
+}
 
 /**
  * User preferences.
@@ -33,6 +57,8 @@ class SettingsRepository @Inject constructor(
         val ESSAY_WORDS = intPreferencesKey("essay_words")
         val PASS_MINUTES = intPreferencesKey("pass_minutes")
         val USES_DICTATION = booleanPreferencesKey("uses_dictation")
+        val BUDGET_MODE = stringPreferencesKey("budget_mode")
+        val PER_APP_BUDGETS = stringPreferencesKey("per_app_budgets")
     }
 
     object Defaults {
@@ -95,6 +121,21 @@ class SettingsRepository @Inject constructor(
     val usesDictation: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.USES_DICTATION] ?: false }
 
+    val budgetMode: Flow<BudgetMode> =
+        context.dataStore.data.map { BudgetMode.fromName(it[Keys.BUDGET_MODE]) }
+
+    /**
+     * Per-app limits, package → minutes. Only consulted in [BudgetMode.PER_APP].
+     *
+     * Stored as JSON in one preference rather than a key per package: the set
+     * of watched apps changes, and DataStore has no way to enumerate or
+     * remove keys by prefix.
+     */
+    val perAppBudgets: Flow<Map<String, Int>> =
+        context.dataStore.data.map { prefs ->
+            prefs[Keys.PER_APP_BUDGETS].toMinutesMap()
+        }
+
     suspend fun setWatchedPackages(packages: Set<String>) {
         context.dataStore.edit { it[Keys.WATCHED_PACKAGES] = packages }
     }
@@ -141,4 +182,39 @@ class SettingsRepository @Inject constructor(
     suspend fun setUsesDictation(value: Boolean) {
         context.dataStore.edit { it[Keys.USES_DICTATION] = value }
     }
+
+    suspend fun setBudgetMode(mode: BudgetMode) {
+        context.dataStore.edit { it[Keys.BUDGET_MODE] = mode.name }
+    }
+
+    suspend fun setPerAppBudget(packageName: String, minutes: Int) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.PER_APP_BUDGETS].toMinutesMap().toMutableMap()
+            current[packageName] = minutes.coerceIn(1, 24 * 60)
+            prefs[Keys.PER_APP_BUDGETS] = current.toJson()
+        }
+    }
+
+    suspend fun clearPerAppBudget(packageName: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.PER_APP_BUDGETS].toMinutesMap().toMutableMap()
+            current.remove(packageName)
+            prefs[Keys.PER_APP_BUDGETS] = current.toJson()
+        }
+    }
+}
+
+private fun String?.toMinutesMap(): Map<String, Int> {
+    if (this.isNullOrBlank()) return emptyMap()
+    return runCatching {
+        val json = JSONObject(this)
+        json.keys().asSequence().associateWith { json.optInt(it, 0) }
+            .filterValues { it > 0 }
+    }.getOrDefault(emptyMap())
+}
+
+private fun Map<String, Int>.toJson(): String {
+    val json = JSONObject()
+    forEach { (key, value) -> json.put(key, value) }
+    return json.toString()
 }

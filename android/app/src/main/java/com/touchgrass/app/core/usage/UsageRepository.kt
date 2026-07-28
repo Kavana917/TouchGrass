@@ -4,14 +4,15 @@ import android.content.Context
 import com.touchgrass.app.core.data.db.PassDao
 import com.touchgrass.app.core.data.db.UsageDao
 import com.touchgrass.app.core.data.db.UsageDay
+import com.touchgrass.app.core.data.settings.BudgetMode
 import com.touchgrass.app.core.data.settings.SettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,35 +35,62 @@ class UsageRepository @Inject constructor(
     private val settings: SettingsRepository
 ) {
 
+    private data class Config(
+        val resetHour: Int,
+        val budget: Int,
+        val watched: Set<String>,
+        val monitorEnabled: Boolean,
+        val mode: BudgetMode,
+        val perAppBudgets: Map<String, Int>
+    )
+
+    private val config: Flow<Config> = combine(
+        settings.resetHour,
+        settings.dailyBudgetMinutes,
+        settings.watchedPackages,
+        settings.monitorEnabled,
+        combine(settings.budgetMode, settings.perAppBudgets) { mode, limits -> mode to limits }
+    ) { resetHour, budget, watched, monitorEnabled, (mode, limits) ->
+        Config(resetHour, budget, watched, monitorEnabled, mode, limits)
+    }
+
     /**
      * Live budget state for the UI.
      *
-     * Note this reads the *persisted* total, so it stays correct even when
-     * the monitor service isn't running — it just stops updating.
+     * Reads the *persisted* usage total, so it stays correct even when the
+     * monitor service isn't running — it just stops updating.
      */
     val budgetState: Flow<BudgetState> =
-        combine(
-            settings.resetHour,
-            settings.dailyBudgetMinutes,
-            settings.watchedPackages,
-            settings.monitorEnabled
-        ) { resetHour, budget, watched, monitorEnabled ->
-            Quad(resetHour, budget, watched, monitorEnabled)
-        }.flatMapLatest { (resetHour, budget, watched, monitorEnabled) ->
-            val dayKey = UsageStatsProvider.budgetDayKey(resetHour)
+        config.flatMapLatest { cfg ->
+            val dayKey = UsageStatsProvider.budgetDayKey(cfg.resetHour)
             combine(
                 usageDao.observeDay(dayKey),
-                passDao.observeMinutesGranted(dayKey)
-            ) { day, bonusMinutes ->
+                passDao.observeSharedMinutesGranted(dayKey),
+                passDao.observePerAppGrants(dayKey)
+            ) { day, sharedBonus, perAppGrants ->
+                val usedPerApp = day?.perAppJson.toPerAppMap()
+                val grantsByPackage = perAppGrants.associate { it.pkg to it.minutes }
+
                 BudgetState(
                     dayKey = dayKey,
-                    budgetMinutes = budget,
-                    bonusMinutes = bonusMinutes,
+                    mode = cfg.mode,
+                    budgetMinutes = cfg.budget,
+                    bonusMinutes = sharedBonus,
                     usedMinutes = day?.minutesUsed ?: 0,
-                    perApp = day?.perAppJson.toPerAppMap(),
+                    perApp = usedPerApp,
+                    appBudgets = cfg.watched.map { pkg ->
+                        AppBudget(
+                            packageName = pkg,
+                            // Falls back to the shared daily budget for any
+                            // app with no explicit limit set yet, so turning
+                            // per-app mode on never leaves an app at zero.
+                            budgetMinutes = cfg.perAppBudgets[pkg] ?: cfg.budget,
+                            bonusMinutes = grantsByPackage[pkg] ?: 0,
+                            usedMinutes = usedPerApp[pkg] ?: 0
+                        )
+                    }.sortedBy { it.packageName },
                     permissionGranted = UsagePermission.isGranted(context),
-                    monitorRunning = monitorEnabled,
-                    watchedAppInForeground = false
+                    monitorRunning = cfg.monitorEnabled
                 )
             }
         }
@@ -72,16 +100,9 @@ class UsageRepository @Inject constructor(
     /** What's on screen right now, for the debug readout. */
     fun currentForegroundPackage(): String? = provider.currentForegroundPackage()
 
-    /** Minutes earned by essays on the given budget day. */
-    suspend fun bonusMinutesFor(resetHour: Int): Int =
-        passDao.observeMinutesGranted(UsageStatsProvider.budgetDayKey(resetHour)).first()
-
     /**
      * Recomputes today's usage from the OS event log and persists it.
      * Called by the monitor service on every poll.
-     *
-     * Returns the freshly computed minutes used, so the caller can decide
-     * how urgently to poll next without a round trip through the database.
      */
     suspend fun refreshUsage(resetHour: Int, watched: Set<String>): Int {
         val dayStart = UsageStatsProvider.budgetDayStart(resetHour)
@@ -103,13 +124,16 @@ class UsageRepository @Inject constructor(
         return totalMinutes
     }
 
+    /** A snapshot of budget state, for the service's polling loop. */
+    suspend fun snapshot(): BudgetState = budgetState.first()
+
     /**
      * Debug-only: zeroes today's stored total.
      *
-     * Note this is cosmetic — the next poll recomputes from the OS event log
-     * and the real number comes straight back. That's the self-correcting
-     * design working as intended, and it's also why "just clear the data"
-     * isn't a way to cheat the budget.
+     * Cosmetic — the next poll recomputes from the OS event log and the real
+     * number comes straight back. That's the self-correcting design working
+     * as intended, and it's also why "just clear the data" isn't a way to
+     * cheat the budget.
      */
     suspend fun resetToday() {
         val resetHour = settings.resetHour.first()
@@ -122,14 +146,6 @@ class UsageRepository @Inject constructor(
         )
     }
 }
-
-/** Small helper so `combine` can carry four values without nesting Pairs. */
-private data class Quad<A, B, C, D>(
-    val first: A,
-    val second: B,
-    val third: C,
-    val fourth: D
-)
 
 private fun String?.toPerAppMap(): Map<String, Int> {
     if (this.isNullOrBlank()) return emptyMap()

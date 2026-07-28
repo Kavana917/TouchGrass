@@ -22,6 +22,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.touchgrass.app.core.data.settings.BudgetMode
 import com.touchgrass.app.ui.components.BodyText
 import com.touchgrass.app.ui.components.PixelText
 import com.touchgrass.app.ui.components.RetroButton
@@ -46,6 +47,7 @@ fun UsageDebugScreen(
     onWriteEssay: () -> Unit = {},
     onOpenHistory: () -> Unit = {},
     onOpenPermissions: () -> Unit = {},
+    onOpenBudget: () -> Unit = {},
     onOpenGallery: () -> Unit = {},
     viewModel: UsageDebugViewModel = hiltViewModel()
 ) {
@@ -149,18 +151,35 @@ fun UsageDebugScreen(
                     PixelText("foreground: ${foreground?.takeLast(30) ?: "—"}")
                 }
 
-                // ---- Budget presets ----
-                RetroWindow(title = "Daily budget") {
-                    BodyText("Set it to 1 minute to see the countdown work quickly.")
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf(1, 5, 30).forEach { minutes ->
-                            RetroButton(
-                                text = "$minutes min",
-                                primary = state.budgetMinutes == minutes,
-                                onClick = { viewModel.setBudget(minutes) }
+                // ---- Budget ----
+                RetroWindow(
+                    title = "Budget",
+                    statusText = if (state.mode == BudgetMode.SHARED) {
+                        "${state.budgetMinutes} min shared"
+                    } else {
+                        "per app"
+                    }
+                ) {
+                    if (state.mode == BudgetMode.PER_APP) {
+                        state.appBudgets.forEach { app ->
+                            PixelText(
+                                "${app.remainingMinutes} / ${app.allowanceMinutes} min  " +
+                                    app.packageName.takeLast(24)
                             )
                         }
+                    } else {
+                        BodyText("Quick presets for testing:")
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf(1, 5, 30).forEach { minutes ->
+                                RetroButton(
+                                    text = "$minutes min",
+                                    primary = state.budgetMinutes == minutes,
+                                    onClick = { viewModel.setBudget(minutes) }
+                                )
+                            }
+                        }
                     }
+                    RetroButton(text = "Budget settings", onClick = onOpenBudget)
                 }
 
                 // ---- Watched apps ----

@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.touchgrass.app.feature.budget.BudgetSettingsScreen
 import com.touchgrass.app.feature.essay.EssayDetailScreen
 import com.touchgrass.app.feature.essay.EssayHistoryScreen
 import com.touchgrass.app.feature.essay.EssayScreen
@@ -23,13 +24,17 @@ import com.touchgrass.app.feature.usage.UsageDebugScreen
  */
 object Routes {
     const val USAGE = "usage"
-    const val ESSAY = "essay"
+    const val ESSAY = "essay?targetPackage={targetPackage}"
+    const val BUDGET = "budget"
     const val ESSAY_HISTORY = "essay_history"
     const val ESSAY_DETAIL = "essay_detail/{essayId}"
     const val PERMISSIONS = "permissions"
     const val GALLERY = "gallery"
 
     fun essayDetail(id: Long) = "essay_detail/$id"
+
+    fun essay(targetPackage: String? = null): String =
+        if (targetPackage.isNullOrBlank()) "essay" else "essay?targetPackage=$targetPackage"
 }
 
 @Composable
@@ -47,14 +52,15 @@ fun TouchGrassNavHost(
         // Arriving from the wall goes straight to the essay. Making someone
         // navigate there themselves after being interrupted would be
         // needless friction on top of friction.
-        startDestination = if (startOnEssay) Routes.ESSAY else Routes.USAGE,
+        startDestination = if (startOnEssay) Routes.essay(returnToPackage) else Routes.USAGE,
         modifier = modifier
     ) {
         composable(Routes.USAGE) {
             UsageDebugScreen(
-                onWriteEssay = { navController.navigate(Routes.ESSAY) },
+                onWriteEssay = { navController.navigate(Routes.essay()) },
                 onOpenHistory = { navController.navigate(Routes.ESSAY_HISTORY) },
                 onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) },
+                onOpenBudget = { navController.navigate(Routes.BUDGET) },
                 onOpenGallery = { navController.navigate(Routes.GALLERY) }
             )
         }
@@ -63,7 +69,21 @@ fun TouchGrassNavHost(
                 onBack = { navController.popBackStack() }
             )
         }
-        composable(Routes.ESSAY) {
+        composable(Routes.BUDGET) {
+            BudgetSettingsScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = Routes.ESSAY,
+            arguments = listOf(
+                navArgument("targetPackage") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) {
             EssayScreen(
                 onDone = {
                     // Paid the toll from the wall? Go back to where you were.
@@ -72,7 +92,7 @@ fun TouchGrassNavHost(
                         onReturnToApp(returnToPackage)
                     } else if (!navController.popBackStack()) {
                         navController.navigate(Routes.USAGE) {
-                            popUpTo(Routes.ESSAY) { inclusive = true }
+                            popUpTo(0) { inclusive = true }
                         }
                     }
                 }

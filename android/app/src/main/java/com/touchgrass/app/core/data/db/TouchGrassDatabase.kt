@@ -7,20 +7,16 @@ import androidx.room.RoomDatabase
  * The app's single local database. Everything lives here and never leaves
  * the device — see app_plan.md §6.3.
  *
- * When you add an entity, add it to [entities] AND bump [version].
- *
- * ⚠️ FROM VERSION 3 ONWARD, WRITE A REAL MIGRATION.
- * The destructive fallback in DataModule was acceptable while the only data
- * was recomputable usage totals. This version introduces essays — someone's
- * hand-typed words, which cannot be regenerated and which they were promised
- * would be kept. Dropping that table on a schema change would be a genuine
- * betrayal, not an inconvenience.
+ * When you add an entity or change one, add it to [entities], bump
+ * [version], AND write a migration in [Migrations]. The destructive
+ * fallback was removed at version 4 — essays cannot be regenerated, so
+ * dropping tables is no longer an acceptable failure mode.
  *
  * Coming later: Book/Page/Stroke (Phase 8), DigestCache (Phase 10).
  */
 @Database(
     entities = [UsageDay::class, Essay::class, PassGrant::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class TouchGrassDatabase : RoomDatabase() {

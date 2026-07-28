@@ -131,15 +131,23 @@ class UsageMonitorService : Service() {
         }
 
         val resetHour = settings.resetHour.first()
-        val budget = settings.dailyBudgetMinutes.first()
-        val bonus = usageRepository.bonusMinutesFor(resetHour)
-
-        val usedMinutes = usageRepository.refreshUsage(resetHour, watched)
-        val allowance = budget + bonus
-        val remaining = (allowance - usedMinutes).coerceAtLeast(0)
+        usageRepository.refreshUsage(resetHour, watched)
 
         val foreground = provider.currentForegroundPackage()
         val watchedInForeground = foreground in watched
+
+        // One snapshot carries mode, per-app limits and grants, so the
+        // service doesn't have to re-derive the rules the UI already knows.
+        val state = usageRepository.snapshot().copy(
+            foregroundPackage = foreground,
+            watchedAppInForeground = watchedInForeground,
+            screenOn = screenOn
+        )
+
+        // In per-app mode the headline number is the app you're actually in,
+        // because that's the limit about to bite.
+        val remaining = state.budgetFor(foreground)?.remainingMinutes
+            ?: state.remainingMinutes
 
         updateNotification(
             if (remaining > 0) "$remaining min left today"
@@ -147,19 +155,14 @@ class UsageMonitorService : Service() {
         )
 
         handleWall(
-            watchedInForeground = watchedInForeground,
+            shouldShow = watchedInForeground && state.isSpentFor(foreground),
             foreground = foreground,
             remaining = remaining,
-            dayKey = UsageStatsProvider.budgetDayKey(resetHour)
+            watchedInForeground = watchedInForeground,
+            dayKey = state.dayKey
         )
 
-        // The adaptive-polling table from app_plan.md §2.7.
-        return when {
-            !watchedInForeground -> BudgetUrgency.IDLE
-            remaining <= 0 -> BudgetUrgency.ARMED
-            remaining <= 5 -> BudgetUrgency.APPROACHING
-            else -> BudgetUrgency.RELAXED
-        }.pollIntervalMillis
+        return state.urgency.pollIntervalMillis
     }
 
     /**
@@ -171,13 +174,12 @@ class UsageMonitorService : Service() {
      * back in for free.
      */
     private suspend fun handleWall(
-        watchedInForeground: Boolean,
+        shouldShow: Boolean,
         foreground: String?,
         remaining: Int,
+        watchedInForeground: Boolean,
         dayKey: String
     ) = withContext(Dispatchers.Main) {
-        val shouldShow = watchedInForeground && remaining <= 0
-
         when {
             shouldShow && !wallOverlay.isShowing -> wallOverlay.show(foreground)
 

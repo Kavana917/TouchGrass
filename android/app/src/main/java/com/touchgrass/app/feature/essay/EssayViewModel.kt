@@ -1,5 +1,6 @@
 package com.touchgrass.app.feature.essay
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.touchgrass.app.core.data.settings.SettingsRepository
@@ -42,12 +43,19 @@ data class EssayUiState(
 
 @HiltViewModel
 class EssayViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val wordGenerator: WordGenerator,
     private val passRepository: PassRepository,
     private val settings: SettingsRepository
 ) : ViewModel() {
 
     private val guard = TypingGuard()
+
+    /**
+     * The app the wall interrupted, passed through from MainActivity.
+     * In per-app mode this is what the earned minutes get credited to.
+     */
+    private val targetPackage: String? = savedStateHandle["targetPackage"]
 
     private val _uiState = MutableStateFlow(EssayUiState())
     val uiState: StateFlow<EssayUiState> = _uiState.asStateFlow()
@@ -138,10 +146,25 @@ class EssayViewModel @Inject constructor(
             wordCount = result.wordCount,
             requiredWords = state.requiredWords,
             durationSeconds = guard.durationSeconds,
-            cadenceSuspicious = guard.looksAutomated()
+            cadenceSuspicious = guard.looksAutomated(),
+            targetPackage = targetPackage ?: firstWatchedPackage()
         )
 
         _uiState.update { it.copy(submitting = false, grantedMinutes = minutes) }
+    }
+
+    /**
+     * Fallback target when an essay is written proactively rather than from
+     * the wall, and per-app mode is on.
+     *
+     * Picks the watched app with the least time left, which is almost
+     * certainly the one being topped up. If that's wrong the user has lost
+     * nothing they can't earn again — better than blocking the essay behind
+     * an app picker they mostly won't need.
+     */
+    private suspend fun firstWatchedPackage(): String? {
+        val watched = settings.watchedPackages.first()
+        return watched.firstOrNull()
     }
 
     companion object {

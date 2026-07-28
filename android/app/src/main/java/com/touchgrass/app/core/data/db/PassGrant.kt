@@ -22,5 +22,13 @@ data class PassGrant(
     val minutesGranted: Int,
     /** The essay that bought it, or null for a panic unlock (Phase 5). */
     val essayId: Long?,
+    /**
+     * Which app the minutes apply to, in per-app budget mode.
+     *
+     * Null means the shared pool. In per-app mode a grant has to be
+     * targeted, otherwise an essay written to get back into Instagram would
+     * silently top up YouTube as well.
+     */
+    val packageName: String? = null,
     val issuedAt: Long = System.currentTimeMillis()
 )

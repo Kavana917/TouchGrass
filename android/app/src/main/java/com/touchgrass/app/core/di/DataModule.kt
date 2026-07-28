@@ -3,6 +3,7 @@ package com.touchgrass.app.core.di
 import android.content.Context
 import androidx.room.Room
 import com.touchgrass.app.core.data.db.EssayDao
+import com.touchgrass.app.core.data.db.Migrations
 import com.touchgrass.app.core.data.db.PassDao
 import com.touchgrass.app.core.data.db.TouchGrassDatabase
 import com.touchgrass.app.core.data.db.UsageDao
@@ -33,12 +34,11 @@ object DataModule {
             TouchGrassDatabase::class.java,
             "touchgrass.db"
         )
-            // Phase 2 replaced the Phase 0 scratch table. There is no user
-            // data worth migrating yet, so a destructive migration is the
-            // honest choice. Once real essays exist (Phase 3) this must
-            // become a proper Migration — losing someone's essays would be
-            // unforgivable.
-            .fallbackToDestructiveMigration()
+            // No destructive fallback. Essays are hand-typed and cannot be
+            // regenerated, so a schema change must never silently drop them
+            // — if a migration is missing, crashing loudly in development is
+            // the correct outcome. See Migrations.
+            .addMigrations(*Migrations.ALL)
             .build()
 
     @Provides

@@ -4,6 +4,7 @@ import com.touchgrass.app.core.data.db.Essay
 import com.touchgrass.app.core.data.db.EssayDao
 import com.touchgrass.app.core.data.db.PassDao
 import com.touchgrass.app.core.data.db.PassGrant
+import com.touchgrass.app.core.data.settings.BudgetMode
 import com.touchgrass.app.core.data.settings.SettingsRepository
 import com.touchgrass.app.core.usage.UsageStatsProvider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -48,11 +49,17 @@ class PassRepository @Inject constructor(
         wordCount: Int,
         requiredWords: Int,
         durationSeconds: Int,
-        cadenceSuspicious: Boolean
+        cadenceSuspicious: Boolean,
+        /**
+         * Which app the minutes are for, in per-app mode. Ignored in shared
+         * mode, where every grant goes to the one pool.
+         */
+        targetPackage: String? = null
     ): Int {
         val resetHour = settings.resetHour.first()
         val dayKey = UsageStatsProvider.budgetDayKey(resetHour)
         val minutes = settings.passMinutes.first()
+        val mode = settings.budgetMode.first()
 
         val essayId = essayDao.insert(
             Essay(
@@ -69,7 +76,11 @@ class PassRepository @Inject constructor(
             PassGrant(
                 dayKey = dayKey,
                 minutesGranted = minutes,
-                essayId = essayId
+                essayId = essayId,
+                // Null in shared mode: one pool, no target. In per-app mode
+                // an untargeted grant would top up every app at once, which
+                // is exactly what per-app limits exist to prevent.
+                packageName = if (mode == BudgetMode.PER_APP) targetPackage else null
             )
         )
 

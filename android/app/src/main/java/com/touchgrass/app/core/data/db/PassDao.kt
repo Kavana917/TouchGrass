@@ -25,15 +25,38 @@ interface EssayDao {
     suspend fun recentWords(limit: Int = 30): List<String>
 }
 
+/** Row shape for the grouped per-app grant query. */
+data class PerAppGrant(
+    val pkg: String,
+    val minutes: Int
+)
+
 @Dao
 interface PassDao {
 
     @Insert
     suspend fun insert(grant: PassGrant): Long
 
-    /** Total bonus minutes earned on a given budget day. */
+    /** Total bonus minutes earned on a given budget day, across all apps. */
     @Query("SELECT COALESCE(SUM(minutesGranted), 0) FROM pass_grants WHERE dayKey = :dayKey")
     fun observeMinutesGranted(dayKey: String): Flow<Int>
+
+    /**
+     * Bonus minutes for the shared pool only — grants with no target app.
+     * Used in SHARED mode so a targeted grant can't leak into it.
+     */
+    @Query(
+        "SELECT COALESCE(SUM(minutesGranted), 0) FROM pass_grants " +
+            "WHERE dayKey = :dayKey AND packageName IS NULL"
+    )
+    fun observeSharedMinutesGranted(dayKey: String): Flow<Int>
+
+    /** All targeted grants for a day, as package → minutes. */
+    @Query(
+        "SELECT packageName AS pkg, SUM(minutesGranted) AS minutes FROM pass_grants " +
+            "WHERE dayKey = :dayKey AND packageName IS NOT NULL GROUP BY packageName"
+    )
+    fun observePerAppGrants(dayKey: String): Flow<List<PerAppGrant>>
 
     @Query("SELECT * FROM pass_grants WHERE dayKey = :dayKey ORDER BY issuedAt DESC")
     fun observeGrants(dayKey: String): Flow<List<PassGrant>>
