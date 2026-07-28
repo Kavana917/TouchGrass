@@ -2,8 +2,8 @@ package com.touchgrass.app.core.di
 
 import android.content.Context
 import androidx.room.Room
-import com.touchgrass.app.core.data.db.ScratchDao
 import com.touchgrass.app.core.data.db.TouchGrassDatabase
+import com.touchgrass.app.core.data.db.UsageDao
 import com.touchgrass.app.core.data.settings.SettingsRepository
 import dagger.Module
 import dagger.Provides
@@ -16,7 +16,8 @@ import javax.inject.Singleton
  * Tells Hilt how to build the things it can't construct on its own.
  *
  * [SingletonComponent] means these live for the whole app lifetime —
- * one database, one settings store, shared by every screen and service.
+ * one database, one settings store, shared by every screen and the
+ * monitor service.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -29,11 +30,18 @@ object DataModule {
             context,
             TouchGrassDatabase::class.java,
             "touchgrass.db"
-        ).build()
+        )
+            // Phase 2 replaced the Phase 0 scratch table. There is no user
+            // data worth migrating yet, so a destructive migration is the
+            // honest choice. Once real essays exist (Phase 3) this must
+            // become a proper Migration — losing someone's essays would be
+            // unforgivable.
+            .fallbackToDestructiveMigration()
+            .build()
 
     @Provides
-    fun provideScratchDao(database: TouchGrassDatabase): ScratchDao =
-        database.scratchDao()
+    fun provideUsageDao(database: TouchGrassDatabase): UsageDao =
+        database.usageDao()
 
     @Provides
     @Singleton

@@ -2,6 +2,40 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!--
+        Usage access. NOT a runtime permission - the user grants it on a
+        Settings screen, and we detect the result via AppOpsManager rather
+        than the normal permission API. See UsagePermission.kt.
+
+        It reads app names and durations only. It cannot see anything that
+        happens inside another app.
+    -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Keeps the usage monitor alive while a watched app is in the foreground. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!-- Required to show the monitor's persistent notification on Android 13+. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Restart the monitor after a reboot so a restart is not a free reset. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+        Lets us list launchable apps for the watched-app picker WITHOUT
+        QUERY_ALL_PACKAGES, which is a sensitive permission Play scrutinises
+        heavily. We only need apps that appear in the launcher.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
         android:name=".TouchGrassApplication"
         android:allowBackup="true"
@@ -13,6 +47,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.TouchGrass"
         tools:targetApi="31">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -24,6 +59,30 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".core.usage.UsageMonitorService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <!--
+                Android 14+ requires a declared subtype for specialUse.
+                Ours is genuinely a screen-time monitor; this string is what
+                gets reviewed by Play.
+            -->
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Monitors foreground app usage to enforce the user's own self-imposed daily time budget." />
+        </service>
+
+        <receiver
+            android:name=".core.usage.BootReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

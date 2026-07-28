@@ -46,6 +46,12 @@ jobs:
         run: ./gradlew testDebugUnitTest --stacktrace
         working-directory: android
 
+      # Worth its runtime: lint caught a real crash-on-Android-9 bug in
+      # Phase 2 that compiled fine and passed tests.
+      - name: Run lint
+        run: ./gradlew lintDebug --stacktrace
+        working-directory: android
+
       # Uploaded so you can download and install the build from any commit
       # without needing Android Studio open.
       - name: Upload debug APK
