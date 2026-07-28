@@ -1,6 +1,7 @@
 package com.touchgrass.app.feature.feed
 
 import android.view.ViewGroup
+import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -92,6 +93,18 @@ private fun YouTubeWebPlayer(
                 settings.loadWithOverviewMode = true
                 settings.useWideViewPort = true
                 setBackgroundColor(android.graphics.Color.BLACK)
+
+                // Android WebView advertises itself with "; wv" in the user
+                // agent, and YouTube refuses embeds from it — the symptom is
+                // "This video is unavailable, error 152" on videos that play
+                // perfectly in a browser. Presenting as ordinary mobile
+                // Chrome is what the official player library does too.
+                settings.userAgentString = CHROME_USER_AGENT
+
+                // The embed sets cookies during player setup; without them
+                // configuration can fail for the same reason.
+                CookieManager.getInstance().setAcceptCookie(true)
+                CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
 
                 // Required for HTML5 video to play in a WebView at all —
                 // without a WebChromeClient you get a black rectangle.
@@ -195,6 +208,14 @@ private fun embedHtml(stream: Stream, audioOn: Boolean): String {
 }
 
 private const val YOUTUBE_ORIGIN = "https://www.youtube.com"
+
+/**
+ * Ordinary mobile Chrome — deliberately without the "; wv" token that
+ * Android WebView normally adds and that YouTube uses to reject embeds.
+ */
+private const val CHROME_USER_AGENT =
+    "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) " +
+        "Chrome/120.0.0.0 Mobile Safari/537.36"
 
 @OptIn(UnstableApi::class)
 @Composable

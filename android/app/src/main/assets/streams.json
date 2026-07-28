@@ -3,6 +3,21 @@
   "note": "EarthCam video IDs. Their flagship cams run continuously and keep the same ID for long stretches, which is the closest thing to a stable YouTube live reference. embed/live_stream?channel= no longer resolves, so channel-based entries were removed. If one dies, replace the streamRef or add your own via Live Feed > Add a stream.",
   "streams": [
     {
+      "id": "diagnostic-hls",
+      "title": "HLS test stream",
+      "place": "Diagnostic — not a real place",
+      "lat": 0.0,
+      "lng": 0.0,
+      "category": "CITY",
+      "moods": [],
+      "source": "HLS",
+      "streamRef": "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8",
+      "hasAudio": true,
+      "timezone": null,
+      "attribution": "Apple sample stream — proves the Media3 path works independently of YouTube",
+      "lastVerified": null
+    },
+    {
       "id": "earthcam-times-square-crossroads",
       "title": "Times Square Crossroads",
       "place": "New York City, USA",
