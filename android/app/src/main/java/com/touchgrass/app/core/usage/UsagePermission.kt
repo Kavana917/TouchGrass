@@ -3,6 +3,7 @@ package com.touchgrass.app.core.usage
 import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Process
 import android.provider.Settings
@@ -52,14 +53,33 @@ object UsagePermission {
     }
 
     /**
-     * Opens the system Usage Access screen.
+     * Opens the system Usage Access screen, landing on TouchGrass's own entry
+     * where possible rather than the full list of installed apps.
+     *
+     * Attaching a `package:` URI to the intent is what asks Settings to jump
+     * straight to one app. It works on most devices but is not part of the
+     * documented contract, so OEMs are free to ignore it and show the plain
+     * list — hence the fallback. Both paths end up somewhere the user can
+     * complete the grant; the deep link just saves them hunting through a
+     * long alphabetical list.
      *
      * There is no result to listen for — the user may grant it, ignore it, or
      * wander off. Always re-check with [isGranted] when the app resumes
      * rather than assuming the trip succeeded.
      */
-    fun buildSettingsIntent(): Intent =
-        Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
+    fun openSettings(context: Context) {
+        val appSpecific = Intent(
+            Settings.ACTION_USAGE_ACCESS_SETTINGS,
+            Uri.fromParts("package", context.packageName, null)
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        val generic = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        // Try the deep link, fall back to the list, and if even that is
+        // missing do nothing rather than crash — some heavily customised
+        // builds have no usage-access screen at all.
+        runCatching { context.startActivity(appSpecific) }
+            .recoverCatching { context.startActivity(generic) }
+    }
 }

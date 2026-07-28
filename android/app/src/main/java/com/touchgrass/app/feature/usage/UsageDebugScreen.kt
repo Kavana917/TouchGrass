@@ -94,9 +94,7 @@ fun UsageDebugScreen(
                         RetroButton(
                             text = "Grant access",
                             primary = true,
-                            onClick = {
-                                context.startActivity(UsagePermission.buildSettingsIntent())
-                            }
+                            onClick = { UsagePermission.openSettings(context) }
                         )
                         RetroButton(
                             text = "I've granted it",
