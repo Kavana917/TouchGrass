@@ -33,74 +33,125 @@ class UsageStatsProvider @Inject constructor(
         get() = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
 
     /**
-     * The package currently in the foreground, or null if we can't tell.
+     * Everything we need from one replay of the event log: how long each
+     * watched app has been open, and what's on screen right now.
      *
-     * Works by replaying the last [lookbackMillis] of events and taking the
-     * most recent resume. There is no direct "what's on screen right now"
-     * API available to a normal app.
-     */
-    fun currentForegroundPackage(lookbackMillis: Long = 60_000L): String? {
-        val manager = usageStatsManager ?: return null
-        val now = System.currentTimeMillis()
-        val events = manager.queryEvents(now - lookbackMillis, now)
-
-        var latestPackage: String? = null
-        var latestTime = 0L
-        val event = UsageEvents.Event()
-
-        while (events.hasNextEvent()) {
-            events.getNextEvent(event)
-            if (event.eventType == EVENT_RESUMED && event.timeStamp >= latestTime) {
-                latestTime = event.timeStamp
-                latestPackage = event.packageName
-            }
-        }
-        return latestPackage
-    }
-
-    /**
-     * Total foreground milliseconds per package since [since].
+     * ⚠️ WHY THESE ARE COMPUTED TOGETHER, FROM THE SAME WINDOW:
      *
-     * Only packages in [packages] are counted. Sessions still open when the
-     * query runs are counted up to `now`, which is what makes the number
-     * tick upward live while an app is open.
+     * They used to be separate, and the foreground check looked back only 60
+     * seconds for a resume event. That silently broke the wall: sit in
+     * Instagram for two minutes without switching apps and the resume event
+     * falls outside the window, so "what's in the foreground?" answers
+     * "nothing" — while the usage total, queried from the start of the day,
+     * kept counting correctly.
+     *
+     * The result was a budget that hit zero and a wall that never fired.
+     *
+     * The fix is to determine the foreground app the same way we determine
+     * duration: replay from [since], track which sessions are still open,
+     * and take the one most recently resumed. An app open for six hours is
+     * still the foreground app.
      */
-    fun foregroundMillisSince(packages: Set<String>, since: Long): Map<String, Long> {
-        if (packages.isEmpty()) return emptyMap()
-        val manager = usageStatsManager ?: return emptyMap()
+    data class ForegroundReport(
+        /** Milliseconds in the foreground, per watched package. */
+        val perAppMillis: Map<String, Long>,
+        /** The package on screen right now, watched or not. */
+        val currentPackage: String?
+    )
+
+    fun foregroundReport(packages: Set<String>, since: Long): ForegroundReport {
+        val manager = usageStatsManager ?: return ForegroundReport(emptyMap(), null)
 
         val now = System.currentTimeMillis()
         val events = manager.queryEvents(since, now)
 
-        val totals = mutableMapOf<String, Long>()
-        val openedAt = mutableMapOf<String, Long>()
+        // Adapt the Android cursor into plain data, then hand off to the pure
+        // function below so the logic can be tested without a device.
+        val parsed = mutableListOf<AppEvent>()
         val event = UsageEvents.Event()
-
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
             val pkg = event.packageName ?: continue
-            if (pkg !in packages) continue
-
-            when (event.eventType) {
-                EVENT_RESUMED -> openedAt[pkg] = event.timeStamp
-
-                EVENT_PAUSED, EVENT_STOPPED -> {
-                    val start = openedAt.remove(pkg) ?: continue
-                    val duration = (event.timeStamp - start).coerceAtLeast(0L)
-                    totals[pkg] = (totals[pkg] ?: 0L) + duration
-                }
-            }
+            parsed += AppEvent(pkg, event.eventType, event.timeStamp)
         }
 
-        // Anything still open contributes right up to this moment.
-        openedAt.forEach { (pkg, start) ->
-            totals[pkg] = (totals[pkg] ?: 0L) + (now - start).coerceAtLeast(0L)
-        }
-
-        return totals
+        return buildReport(parsed, packages, now)
     }
 
+    /**
+     * What's on screen right now.
+     *
+     * Looks back far enough to find an app that was opened hours ago and
+     * never left — see the warning on [foregroundReport].
+     */
+    fun currentForegroundPackage(lookbackMillis: Long = DEFAULT_LOOKBACK_MILLIS): String? =
+        foregroundReport(
+            packages = emptySet(),
+            since = System.currentTimeMillis() - lookbackMillis
+        ).currentPackage
+
+    /** Total foreground milliseconds per package since [since]. */
+    fun foregroundMillisSince(packages: Set<String>, since: Long): Map<String, Long> =
+        foregroundReport(packages, since).perAppMillis
+
+    /** One foreground transition, decoupled from the Android event cursor. */
+    data class AppEvent(
+        val packageName: String,
+        val eventType: Int,
+        val timestamp: Long
+    )
+
     companion object {
+
+        /**
+         * The actual logic, as a pure function — no Android, no clock.
+         *
+         * Walks the event log tracking which sessions are open. Sessions are
+         * tracked for EVERY package, not just watched ones, because we need
+         * to know when the user switches to something unwatched — that's
+         * exactly when the wall should come down.
+         *
+         * @param now the instant the query was taken; still-open sessions
+         *   are counted up to here, which is what makes totals tick upward
+         *   live while an app is open.
+         */
+        fun buildReport(
+            events: List<AppEvent>,
+            packages: Set<String>,
+            now: Long
+        ): ForegroundReport {
+            val totals = mutableMapOf<String, Long>()
+            val openedAt = mutableMapOf<String, Long>()
+
+            events.sortedBy { it.timestamp }.forEach { event ->
+                when (event.eventType) {
+                    EVENT_RESUMED -> openedAt[event.packageName] = event.timestamp
+
+                    EVENT_PAUSED, EVENT_STOPPED -> {
+                        val start = openedAt.remove(event.packageName) ?: return@forEach
+                        if (event.packageName in packages) {
+                            val duration = (event.timestamp - start).coerceAtLeast(0L)
+                            totals[event.packageName] =
+                                (totals[event.packageName] ?: 0L) + duration
+                        }
+                    }
+                }
+            }
+
+            openedAt.forEach { (pkg, start) ->
+                if (pkg in packages) {
+                    totals[pkg] = (totals[pkg] ?: 0L) + (now - start).coerceAtLeast(0L)
+                }
+            }
+
+            // The still-open session with the latest resume is what's on
+            // screen. Crucially this has no recency cut-off — an app opened
+            // six hours ago and never left is still the foreground app.
+            val current = openedAt.maxByOrNull { it.value }?.key
+
+            return ForegroundReport(perAppMillis = totals, currentPackage = current)
+        }
+
         /**
          * ACTIVITY_RESUMED / ACTIVITY_PAUSED were added in API 29, but they
          * are the same integer values as the older MOVE_TO_FOREGROUND /
@@ -108,9 +159,18 @@ class UsageStatsProvider @Inject constructor(
          * one code path working from our minSdk of 26 upward, without
          * deprecation warnings or a version check.
          */
-        private const val EVENT_RESUMED = 1   // ACTIVITY_RESUMED / MOVE_TO_FOREGROUND
-        private const val EVENT_PAUSED = 2    // ACTIVITY_PAUSED  / MOVE_TO_BACKGROUND
-        private const val EVENT_STOPPED = 23  // ACTIVITY_STOPPED (API 29+; ignored below that)
+        const val EVENT_RESUMED = 1   // ACTIVITY_RESUMED / MOVE_TO_FOREGROUND
+        const val EVENT_PAUSED = 2    // ACTIVITY_PAUSED  / MOVE_TO_BACKGROUND
+        const val EVENT_STOPPED = 23  // ACTIVITY_STOPPED (API 29+; ignored below that)
+
+        /**
+         * How far back to look when asking what's on screen.
+         *
+         * 12 hours, because the question is "which session is still open?"
+         * not "did something change recently?" — an app opened this morning
+         * and never closed is still the foreground app.
+         */
+        private const val DEFAULT_LOOKBACK_MILLIS = 12 * 60 * 60 * 1000L
 
         /**
          * Start of the current budget day, given a reset hour.

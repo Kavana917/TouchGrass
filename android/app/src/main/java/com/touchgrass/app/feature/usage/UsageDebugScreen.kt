@@ -90,18 +90,31 @@ fun UsageDebugScreen(
                         text = "${state.remainingMinutes} min left",
                         style = RetroTheme.typography.numeral
                     )
-                    PixelText("used ${state.usedMinutes} of ${state.totalAllowanceMinutes}")
-                    if (state.bonusMinutes > 0) {
-                        PixelText("${state.budgetMinutes} free + ${state.bonusMinutes} earned")
-                    }
-                    SegmentedProgress(
-                        progress = if (state.totalAllowanceMinutes > 0) {
-                            state.usedMinutes.toFloat() / state.totalAllowanceMinutes
-                        } else 0f
-                    )
-                    if (state.perApp.isNotEmpty()) {
-                        state.perApp.forEach { (pkg, minutes) ->
-                            PixelText("$minutes min  ${pkg.takeLast(28)}")
+                    // In per-app mode there is no single "of N" to report —
+                    // showing the shared total next to per-app usage was
+                    // nonsense like "used 73 of 20".
+                    if (state.mode == BudgetMode.SHARED) {
+                        PixelText("used ${state.usedMinutes} of ${state.totalAllowanceMinutes}")
+                        if (state.bonusMinutes > 0) {
+                            PixelText("${state.budgetMinutes} free + ${state.bonusMinutes} earned")
+                        }
+                        SegmentedProgress(
+                            progress = if (state.totalAllowanceMinutes > 0) {
+                                state.usedMinutes.toFloat() / state.totalAllowanceMinutes
+                            } else 0f
+                        )
+                    } else {
+                        PixelText("per-app limits")
+                        state.appBudgets.forEach { app ->
+                            PixelText(
+                                "${app.usedMinutes} of ${app.allowanceMinutes} min  " +
+                                    app.packageName.takeLast(24)
+                            )
+                            SegmentedProgress(
+                                progress = if (app.allowanceMinutes > 0) {
+                                    app.usedMinutes.toFloat() / app.allowanceMinutes
+                                } else 0f
+                            )
                         }
                     }
                 }

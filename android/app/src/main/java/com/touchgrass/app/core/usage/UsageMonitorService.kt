@@ -145,9 +145,11 @@ class UsageMonitorService : Service() {
         }
 
         val resetHour = settings.resetHour.first()
-        usageRepository.refreshUsage(resetHour, watched)
 
-        val foreground = provider.currentForegroundPackage()
+        // Usage total and foreground app come from the SAME event replay, so
+        // they can never disagree about whether an app is open.
+        val report = usageRepository.refreshUsage(resetHour, watched)
+        val foreground = report.currentPackage
         val watchedInForeground = foreground in watched
 
         // One snapshot carries mode, per-app limits and grants, so the

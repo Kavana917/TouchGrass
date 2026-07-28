@@ -104,15 +104,27 @@ class UsageRepository @Inject constructor(
      * Recomputes today's usage from the OS event log and persists it.
      * Called by the monitor service on every poll.
      */
-    suspend fun refreshUsage(resetHour: Int, watched: Set<String>): Int {
+    /**
+     * Recomputes today's usage AND reports what's on screen, from a single
+     * replay of the OS event log.
+     *
+     * One query for both on purpose: when these were computed separately
+     * over different time windows, usage counted correctly while the
+     * foreground check returned null, and the wall silently never fired.
+     * See UsageStatsProvider.foregroundReport.
+     */
+    suspend fun refreshUsage(
+        resetHour: Int,
+        watched: Set<String>
+    ): UsageStatsProvider.ForegroundReport {
         val dayStart = UsageStatsProvider.budgetDayStart(resetHour)
         val dayKey = UsageStatsProvider.budgetDayKey(resetHour)
 
-        val perAppMillis = provider.foregroundMillisSince(watched, dayStart)
-        val perAppMinutes = perAppMillis.mapValues { (_, millis) ->
+        val report = provider.foregroundReport(watched, dayStart)
+        val perAppMinutes = report.perAppMillis.mapValues { (_, millis) ->
             (millis / 60_000.0).roundToInt()
         }
-        val totalMinutes = (perAppMillis.values.sum() / 60_000.0).roundToInt()
+        val totalMinutes = (report.perAppMillis.values.sum() / 60_000.0).roundToInt()
 
         usageDao.upsert(
             UsageDay(
@@ -121,7 +133,7 @@ class UsageRepository @Inject constructor(
                 perAppJson = perAppMinutes.toJson()
             )
         )
-        return totalMinutes
+        return report
     }
 
     /** A snapshot of budget state, for the service's polling loop. */
