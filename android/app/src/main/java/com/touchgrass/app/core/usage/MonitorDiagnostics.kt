@@ -32,6 +32,8 @@ data class MonitorSnapshot(
     /** Set if a poll threw. The loop keeps running; this records what broke. */
     val lastError: String? = null,
     val lastErrorAt: Long = 0L,
+    /** Why the overlay refused to appear, if it did. */
+    val wallError: String? = null,
     /**
      * Recent polls, newest first.
      *
@@ -66,7 +68,8 @@ class MonitorDiagnostics @Inject constructor() {
         shouldShowWall: Boolean,
         wallShowing: Boolean,
         overlayPermitted: Boolean,
-        screenOn: Boolean
+        screenOn: Boolean,
+        wallError: String? = null
     ) {
         val now = System.currentTimeMillis()
         val record = PollRecord(
@@ -88,6 +91,7 @@ class MonitorDiagnostics @Inject constructor() {
             wallShowing = wallShowing,
             overlayPermitted = overlayPermitted,
             screenOn = screenOn,
+            wallError = wallError,
             // Only keep transitions and wall-relevant moments, so the log
             // isn't 40 identical lines of "sitting in the launcher".
             recentPolls = (listOf(record) + _state.value.recentPolls)

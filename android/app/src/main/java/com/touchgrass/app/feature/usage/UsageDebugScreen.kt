@@ -17,6 +17,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -24,6 +25,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.touchgrass.app.core.data.settings.BudgetMode
+import com.touchgrass.app.core.permissions.AppPermissions
 import com.touchgrass.app.ui.components.BodyText
 import com.touchgrass.app.ui.components.GrooveSeparator
 import com.touchgrass.app.ui.components.PixelText
@@ -63,6 +65,7 @@ fun UsageDebugScreen(
     val foreground by viewModel.liveForeground.collectAsStateWithLifecycle()
     val diag by viewModel.monitorDiagnostics.collectAsStateWithLifecycle()
     val timeFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+    val context = LocalContext.current
 
     // Permissions are granted on Settings screens we get no callback from,
     // so re-check whenever this screen comes back to the foreground.
@@ -266,8 +269,26 @@ fun UsageDebugScreen(
 
                     if (diag.lastError != null) {
                         GrooveSeparator()
-                        PixelText("last error:", color = RetroTheme.colors.accentRed)
+                        PixelText("poll error:", color = RetroTheme.colors.accentRed)
                         BodyText(diag.lastError!!, style = RetroTheme.typography.bodySmall)
+                    }
+
+                    if (diag.wallError != null) {
+                        GrooveSeparator()
+                        PixelText("wall refused:", color = RetroTheme.colors.accentRed)
+                        BodyText(diag.wallError!!, style = RetroTheme.typography.bodySmall)
+                        BodyText(
+                            "Some phones need a second permission beyond " +
+                                "draw-over-apps — often called \"display " +
+                                "pop-up windows while running in background\". " +
+                                "It lives in the app's settings page, not in " +
+                                "Android's main permission list.",
+                            style = RetroTheme.typography.bodySmall
+                        )
+                        RetroButton(
+                            text = "Open app settings",
+                            onClick = { AppPermissions.openAppDetails(context) }
+                        )
                     }
 
                     GrooveSeparator()
@@ -307,9 +328,12 @@ fun UsageDebugScreen(
 
                     GrooveSeparator()
                     BodyText(
-                        "Test wall bypasses all detection. If it shows the " +
-                            "wall, the overlay works and the problem is " +
-                            "detection. If it doesn't, it's the permission.",
+                        "TEST WALL forces the overlay up right now, skipping " +
+                            "all detection. Do this first — if the wall " +
+                            "appears, the overlay works and the problem is " +
+                            "detection. If nothing happens, the problem is " +
+                            "the overlay itself and the reason will show " +
+                            "above.",
                         style = RetroTheme.typography.bodySmall
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -320,6 +344,13 @@ fun UsageDebugScreen(
                         )
                         RetroButton(text = "Hide wall", onClick = { viewModel.hideWall() })
                     }
+                    BodyText(
+                        "While scrolling Instagram, pull down the " +
+                            "notification shade. TouchGrass's notification " +
+                            "shows what the monitor is seeing live — that's " +
+                            "the only readout visible from inside another app.",
+                        style = RetroTheme.typography.bodySmall
+                    )
                 }
 
                 RetroWindow(title = "Dev") {

@@ -165,11 +165,6 @@ class UsageMonitorService : Service() {
         val remaining = state.budgetFor(foreground)?.remainingMinutes
             ?: state.remainingMinutes
 
-        updateNotification(
-            if (remaining > 0) "$remaining min left today"
-            else "Time's up for today"
-        )
-
         val shouldShow = watchedInForeground && state.isSpentFor(foreground)
 
         handleWall(
@@ -180,6 +175,22 @@ class UsageMonitorService : Service() {
             dayKey = state.dayKey
         )
 
+        // The notification is the ONLY surface visible from inside Instagram,
+        // which makes it the only place a live diagnosis can be read at the
+        // moment it matters. Pull down the shade while scrolling and it says
+        // exactly what the monitor thinks is happening.
+        updateNotification(
+            buildString {
+                append("$remaining min · ")
+                append(foreground?.substringAfterLast('.') ?: "unknown")
+                when {
+                    wallOverlay.lastError != null -> append(" · WALL FAILED")
+                    wallOverlay.isShowing -> append(" · wall up")
+                    shouldShow -> append(" · wall pending")
+                }
+            }
+        )
+
         diagnostics.recordPoll(
             foregroundPackage = foreground,
             watchedInForeground = watchedInForeground,
@@ -187,7 +198,8 @@ class UsageMonitorService : Service() {
             shouldShowWall = shouldShow,
             wallShowing = wallOverlay.isShowing,
             overlayPermitted = OverlayPermission.isGranted(this),
-            screenOn = screenOn
+            screenOn = screenOn,
+            wallError = wallOverlay.lastError
         )
 
         return state.urgency.pollIntervalMillis

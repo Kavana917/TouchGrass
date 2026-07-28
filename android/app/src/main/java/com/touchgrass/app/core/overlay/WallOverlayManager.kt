@@ -47,13 +47,35 @@ class WallOverlayManager @Inject constructor(
 
     val isShowing: Boolean get() = rootView != null
 
+    /**
+     * Why the last show() attempt failed, or null if it worked.
+     *
+     * This exists because addView() failing used to be swallowed entirely:
+     * the wall simply didn't appear and nothing anywhere said why. On several
+     * OEM skins (MIUI, ColorOS) a background app needs a SECOND permission
+     * beyond "draw over other apps" — often called "display pop-up windows
+     * while running in background" — and without it addView throws or is
+     * silently ignored. That has to be visible.
+     */
+    @Volatile
+    var lastError: String? = null
+        private set
+
     @SuppressLint("InflateParams")
     fun show(fromPackage: String?) {
         if (isShowing) return
-        if (!OverlayPermission.isGranted(context)) return
+
+        if (!OverlayPermission.isGranted(context)) {
+            lastError = "Draw-over-apps permission is off"
+            return
+        }
 
         val windowManager =
-            context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
+            context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+        if (windowManager == null) {
+            lastError = "No WindowManager available"
+            return
+        }
 
         triggeringPackage = fromPackage
 
@@ -104,11 +126,13 @@ class WallOverlayManager @Inject constructor(
             .onSuccess {
                 rootView = root
                 owner = viewOwner
+                lastError = null
             }
-            .onFailure {
-                // Permission revoked between the check and the add, or an
-                // OEM refusing the window type. Nothing useful to do except
-                // not crash the monitor.
+            .onFailure { error ->
+                // Record it. A silently swallowed failure here is
+                // indistinguishable from "detection never fired", and that
+                // ambiguity is expensive to debug.
+                lastError = "${error::class.simpleName}: ${error.message}"
                 viewOwner.onDetach()
             }
     }
