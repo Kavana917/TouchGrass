@@ -15,9 +15,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import com.touchgrass.app.core.data.settings.SettingsRepository
 import com.touchgrass.app.ui.navigation.TouchGrassNavHost
 import com.touchgrass.app.ui.theme.TouchGrassTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * The app's single Activity. Everything else is a Composable inside it —
@@ -26,10 +32,18 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    @Inject lateinit var settings: SettingsRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         renderFrom(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Timestamps each visit so gaps in monitoring can be detected.
+        lifecycleScope.launch { settings.markSeen() }
     }
 
     /**
@@ -50,6 +64,7 @@ class MainActivity : ComponentActivity() {
             TouchGrassApp(
                 startOnEssay = openEssay,
                 returnToPackage = returnTo,
+                setupComplete = settings.setupComplete,
                 onReturnToApp = { pkg -> launchPackage(pkg) }
             )
         }
@@ -57,8 +72,8 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Sends the user back to the app the wall interrupted, once they've
-     * paid the toll. Landing back on the debug screen after writing 150
-     * words would be a small betrayal of what they just bought.
+     * paid the toll. Landing back on our own screen after writing 150 words
+     * would be a small betrayal of what they just bought.
      */
     private fun launchPackage(packageName: String) {
         val launch = packageManager.getLaunchIntentForPackage(packageName)
@@ -79,23 +94,29 @@ class MainActivity : ComponentActivity() {
 private fun TouchGrassApp(
     startOnEssay: Boolean,
     returnToPackage: String?,
+    setupComplete: Flow<Boolean>,
     onReturnToApp: (String) -> Unit
 ) {
-    // Night state lives above the theme so the gallery can toggle it.
-    // In Phase 5 this moves into DataStore as a user setting.
+    // Null until DataStore answers — we must not flash the main screen at a
+    // first-run user before deciding they need onboarding.
+    val complete by setupComplete.collectAsStateWithLifecycle(initialValue = null)
+
     val systemNight = isSystemInDarkTheme()
     var isNight by remember { mutableStateOf(systemNight) }
 
     TouchGrassTheme(isNight = isNight) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            TouchGrassNavHost(
-                isNight = isNight,
-                onToggleNight = { isNight = !isNight },
-                startOnEssay = startOnEssay,
-                returnToPackage = returnToPackage,
-                onReturnToApp = onReturnToApp,
-                modifier = Modifier.padding(innerPadding)
-            )
+            complete?.let { done ->
+                TouchGrassNavHost(
+                    isNight = isNight,
+                    onToggleNight = { isNight = !isNight },
+                    startOnEssay = startOnEssay,
+                    setupComplete = done,
+                    returnToPackage = returnToPackage,
+                    onReturnToApp = onReturnToApp,
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
         }
     }
 }

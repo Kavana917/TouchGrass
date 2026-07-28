@@ -146,6 +146,11 @@ class UsageMonitorService : Service() {
 
         val resetHour = settings.resetHour.first()
 
+        // A raise scheduled yesterday takes effect once the day has actually
+        // turned over. Doing it here means it happens even if the app is
+        // never opened.
+        settings.promotePendingBudget(UsageStatsProvider.budgetDayKey(resetHour))
+
         // Usage total and foreground app come from the SAME event replay, so
         // they can never disagree about whether an app is open.
         val report = usageRepository.refreshUsage(resetHour, watched)
@@ -307,10 +312,14 @@ class UsageMonitorService : Service() {
             } else {
                 context.startService(intent)
             }
+            // The watchdog only matters while the monitor is meant to be
+            // running, so its lifecycle is tied to the service's.
+            MonitorWatchdogWorker.schedule(context)
         }
 
         fun stop(context: Context) {
             context.stopService(Intent(context, UsageMonitorService::class.java))
+            MonitorWatchdogWorker.cancel(context)
         }
     }
 }

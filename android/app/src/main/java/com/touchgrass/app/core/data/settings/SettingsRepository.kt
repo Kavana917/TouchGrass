@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -59,6 +60,11 @@ class SettingsRepository @Inject constructor(
         val USES_DICTATION = booleanPreferencesKey("uses_dictation")
         val BUDGET_MODE = stringPreferencesKey("budget_mode")
         val PER_APP_BUDGETS = stringPreferencesKey("per_app_budgets")
+        val PENDING_BUDGET = intPreferencesKey("pending_budget")
+        val PENDING_BUDGET_FROM_DAY = stringPreferencesKey("pending_budget_from_day")
+        val PANIC_MONTH = stringPreferencesKey("panic_month")
+        val PANIC_USED = intPreferencesKey("panic_used")
+        val LAST_SEEN_AT = longPreferencesKey("last_seen_at")
     }
 
     object Defaults {
@@ -87,6 +93,18 @@ class SettingsRepository @Inject constructor(
          * start the day over.
          */
         const val PASS_MINUTES = 15
+
+        /**
+         * Panic unlocks per month (app_plan.md §2.6).
+         *
+         * Instant, no essay, no questions asked. A wellbeing app that traps
+         * someone in a real emergency is a bad app, and the friction has to
+         * have a documented way out that costs nothing in the moment.
+         */
+        const val PANIC_UNLOCKS_PER_MONTH = 3
+
+        /** Minutes a panic unlock grants. */
+        const val PANIC_MINUTES = 15
     }
 
     /** Packages whose foreground time counts against the budget. */
@@ -148,15 +166,56 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    /** A raise waiting for the next reset, or null. */
+    val pendingBudget: Flow<Pair<Int, String>?> =
+        context.dataStore.data.map { prefs ->
+            val minutes = prefs[Keys.PENDING_BUDGET]
+            val fromDay = prefs[Keys.PENDING_BUDGET_FROM_DAY]
+            if (minutes != null && fromDay != null) minutes to fromDay else null
+        }
+
     /**
-     * Lowering the budget applies immediately; raising it should wait until
-     * the next reset (app_plan.md §2.6) so it can't be used as an escape
-     * hatch mid-craving. That deferral lands in Phase 5 with the rest of the
-     * settings UI — for now this is a straight write, used only by the debug
-     * screen.
+     * Change the daily budget, with an asymmetry that matters
+     * (app_plan.md §2.6):
+     *
+     *  - LOWERING applies immediately. Deciding you want less is a decision
+     *    the app should never stand in the way of.
+     *  - RAISING waits until the next reset. Otherwise the budget itself is
+     *    the escape hatch — hit the wall, bump the number, carry on, and the
+     *    whole mechanism is decorative.
+     *
+     * @param todayKey the current budget day, so we know which day the raise
+     *   should start from.
      */
-    suspend fun setDailyBudgetMinutes(minutes: Int) {
-        context.dataStore.edit { it[Keys.DAILY_BUDGET_MINUTES] = minutes.coerceIn(1, 24 * 60) }
+    suspend fun setDailyBudgetMinutes(minutes: Int, todayKey: String? = null) {
+        val clamped = minutes.coerceIn(1, 24 * 60)
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.DAILY_BUDGET_MINUTES] ?: Defaults.DAILY_BUDGET_MINUTES
+            if (clamped <= current || todayKey == null) {
+                prefs[Keys.DAILY_BUDGET_MINUTES] = clamped
+                prefs.remove(Keys.PENDING_BUDGET)
+                prefs.remove(Keys.PENDING_BUDGET_FROM_DAY)
+            } else {
+                prefs[Keys.PENDING_BUDGET] = clamped
+                prefs[Keys.PENDING_BUDGET_FROM_DAY] = todayKey
+            }
+        }
+    }
+
+    /**
+     * Applies a pending raise once the budget day has actually turned over.
+     * Called from the monitor's poll loop.
+     */
+    suspend fun promotePendingBudget(todayKey: String) {
+        context.dataStore.edit { prefs ->
+            val pending = prefs[Keys.PENDING_BUDGET] ?: return@edit
+            val fromDay = prefs[Keys.PENDING_BUDGET_FROM_DAY] ?: return@edit
+            if (todayKey > fromDay) {
+                prefs[Keys.DAILY_BUDGET_MINUTES] = pending
+                prefs.remove(Keys.PENDING_BUDGET)
+                prefs.remove(Keys.PENDING_BUDGET_FROM_DAY)
+            }
+        }
     }
 
     suspend fun setResetHour(hour: Int) {
@@ -195,6 +254,54 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    /**
+     * Panic unlocks left this month.
+     *
+     * Shown in settings without judgement — no "you've used 2 of 3 already".
+     * The count exists to stop it becoming a routine bypass, not to make
+     * anyone feel watched for using one.
+     */
+    val panicUnlocksLeft: Flow<Int> =
+        context.dataStore.data.map { prefs ->
+            val storedMonth = prefs[Keys.PANIC_MONTH]
+            val used = prefs[Keys.PANIC_USED] ?: 0
+            if (storedMonth != currentMonthKey()) {
+                Defaults.PANIC_UNLOCKS_PER_MONTH
+            } else {
+                (Defaults.PANIC_UNLOCKS_PER_MONTH - used).coerceAtLeast(0)
+            }
+        }
+
+    /** Returns true if an unlock was available and has now been consumed. */
+    suspend fun consumePanicUnlock(): Boolean {
+        var granted = false
+        context.dataStore.edit { prefs ->
+            val month = currentMonthKey()
+            val used = if (prefs[Keys.PANIC_MONTH] == month) {
+                prefs[Keys.PANIC_USED] ?: 0
+            } else {
+                0
+            }
+            if (used < Defaults.PANIC_UNLOCKS_PER_MONTH) {
+                prefs[Keys.PANIC_MONTH] = month
+                prefs[Keys.PANIC_USED] = used + 1
+                granted = true
+            }
+        }
+        return granted
+    }
+
+    /**
+     * When the app was last opened. Used to notice monitoring gaps —
+     * see MonitorHealth.
+     */
+    val lastSeenAt: Flow<Long> =
+        context.dataStore.data.map { it[Keys.LAST_SEEN_AT] ?: 0L }
+
+    suspend fun markSeen() {
+        context.dataStore.edit { it[Keys.LAST_SEEN_AT] = System.currentTimeMillis() }
+    }
+
     suspend fun clearPerAppBudget(packageName: String) {
         context.dataStore.edit { prefs ->
             val current = prefs[Keys.PER_APP_BUDGETS].toMinutesMap().toMutableMap()
@@ -202,6 +309,15 @@ class SettingsRepository @Inject constructor(
             prefs[Keys.PER_APP_BUDGETS] = current.toJson()
         }
     }
+}
+
+/** `2026-07`, for scoping the monthly panic-unlock allowance. */
+private fun currentMonthKey(): String {
+    val calendar = java.util.Calendar.getInstance()
+    return "%04d-%02d".format(
+        calendar.get(java.util.Calendar.YEAR),
+        calendar.get(java.util.Calendar.MONTH) + 1
+    )
 }
 
 private fun String?.toMinutesMap(): Map<String, Int> {

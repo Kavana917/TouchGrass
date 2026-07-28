@@ -13,6 +13,7 @@ import com.touchgrass.app.feature.essay.EssayDetailScreen
 import com.touchgrass.app.feature.essay.EssayHistoryScreen
 import com.touchgrass.app.feature.essay.EssayScreen
 import com.touchgrass.app.feature.gallery.ComponentGalleryScreen
+import com.touchgrass.app.feature.onboarding.OnboardingScreen
 import com.touchgrass.app.feature.permissions.PermissionsScreen
 import com.touchgrass.app.feature.usage.UsageDebugScreen
 
@@ -23,6 +24,7 @@ import com.touchgrass.app.feature.usage.UsageDebugScreen
  * Still to come: live feed (Phase 6), drawing book (Phase 8), FOMO (Phase 10).
  */
 object Routes {
+    const val ONBOARDING = "onboarding"
     const val USAGE = "usage"
     const val ESSAY = "essay?targetPackage={targetPackage}"
     const val BUDGET = "budget"
@@ -43,18 +45,32 @@ fun TouchGrassNavHost(
     onToggleNight: () -> Unit,
     modifier: Modifier = Modifier,
     startOnEssay: Boolean = false,
+    setupComplete: Boolean = true,
     returnToPackage: String? = null,
     onReturnToApp: (String) -> Unit = {},
     navController: NavHostController = rememberNavController()
 ) {
     NavHost(
         navController = navController,
-        // Arriving from the wall goes straight to the essay. Making someone
-        // navigate there themselves after being interrupted would be
-        // needless friction on top of friction.
-        startDestination = if (startOnEssay) Routes.essay(returnToPackage) else Routes.USAGE,
+        startDestination = when {
+            // Arriving from the wall goes straight to the essay. Making
+            // someone navigate there themselves after being interrupted
+            // would be friction on top of friction.
+            startOnEssay -> Routes.essay(returnToPackage)
+            !setupComplete -> Routes.ONBOARDING
+            else -> Routes.USAGE
+        },
         modifier = modifier
     ) {
+        composable(Routes.ONBOARDING) {
+            OnboardingScreen(
+                onFinished = {
+                    navController.navigate(Routes.USAGE) {
+                        popUpTo(Routes.ONBOARDING) { inclusive = true }
+                    }
+                }
+            )
+        }
         composable(Routes.USAGE) {
             UsageDebugScreen(
                 onWriteEssay = { navController.navigate(Routes.essay()) },

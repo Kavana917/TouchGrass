@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -31,6 +32,7 @@ import com.touchgrass.app.ui.components.GrooveSeparator
 import com.touchgrass.app.ui.components.PixelText
 import com.touchgrass.app.ui.components.RetroButton
 import com.touchgrass.app.ui.components.RetroCheckbox
+import com.touchgrass.app.ui.components.RetroDialog
 import com.touchgrass.app.ui.components.RetroWindow
 import com.touchgrass.app.ui.components.SegmentedProgress
 import com.touchgrass.app.ui.components.Taskbar
@@ -64,6 +66,8 @@ fun UsageDebugScreen(
     val apps by viewModel.installedApps.collectAsStateWithLifecycle()
     val foreground by viewModel.liveForeground.collectAsStateWithLifecycle()
     val diag by viewModel.monitorDiagnostics.collectAsStateWithLifecycle()
+    val panicLeft by viewModel.panicUnlocksLeft.collectAsStateWithLifecycle()
+    val panicGranted by viewModel.panicGranted.collectAsStateWithLifecycle()
     val timeFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
     val context = LocalContext.current
 
@@ -353,6 +357,44 @@ fun UsageDebugScreen(
                     )
                 }
 
+                // ---- Panic unlock ----
+                RetroWindow(
+                    title = "Emergency",
+                    statusText = "$panicLeft left this month"
+                ) {
+                    BodyText(
+                        "If you genuinely need in right now, take one. No " +
+                            "essay, no questions."
+                    )
+                    RetroButton(
+                        text = "Unlock now",
+                        enabled = panicLeft > 0,
+                        onClick = { viewModel.usePanicUnlock() }
+                    )
+                }
+
+                // ---- Keeping it alive ----
+                RetroWindow(
+                    title = "If the monitor stops",
+                    statusText = viewModel.oemSteps.manufacturer
+                ) {
+                    BodyText(
+                        "Phones aggressively kill background apps, and when " +
+                            "yours does, TouchGrass stops working silently. " +
+                            "These settings stop that:"
+                    )
+                    viewModel.oemSteps.steps.forEachIndexed { index, step ->
+                        BodyText(
+                            "${index + 1}. $step",
+                            style = RetroTheme.typography.bodySmall
+                        )
+                    }
+                    RetroButton(
+                        text = "Open app settings",
+                        onClick = { AppPermissions.openAppDetails(context) }
+                    )
+                }
+
                 RetroWindow(title = "Dev") {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         RetroButton(text = "Permissions", onClick = onOpenPermissions)
@@ -367,6 +409,18 @@ fun UsageDebugScreen(
                 timeRemaining = "${state.remainingMinutes} min",
                 onMenuClick = { }
             )
+        }
+
+        panicGranted?.let { minutes ->
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                RetroDialog(
+                    title = "TouchGrass",
+                    // Machine voice, no judgement either way (§11).
+                    message = "$minutes minutes added.",
+                    primaryLabel = "OK",
+                    onPrimary = { viewModel.dismissPanicResult() }
+                )
+            }
         }
     }
 }

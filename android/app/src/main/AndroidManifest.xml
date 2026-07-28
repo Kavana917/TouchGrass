@@ -86,6 +86,23 @@
                 android:value="Monitors foreground app usage to enforce the user's own self-imposed daily time budget." />
         </service>
 
+        <!--
+            Remove WorkManager's automatic initialiser. The Application
+            supplies its own Configuration so the watchdog worker can have
+            dependencies injected; leaving this in means WorkManager wins the
+            race and the injected worker fails to construct at runtime.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
         <receiver
             android:name=".core.usage.BootReceiver"
             android:enabled="true"

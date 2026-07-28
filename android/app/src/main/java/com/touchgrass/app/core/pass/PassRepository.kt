@@ -87,6 +87,39 @@ class PassRepository @Inject constructor(
         return minutes
     }
 
+    val panicUnlocksLeft: Flow<Int> = settings.panicUnlocksLeft
+
+    /**
+     * The emergency exit (app_plan.md §2.6).
+     *
+     * Instant, no essay, no questions, no "are you sure?". Three a month.
+     *
+     * This exists because a wellbeing app that traps someone during a real
+     * emergency is a bad app, and no amount of good intentions about
+     * friction changes that. The count is there so it doesn't quietly become
+     * the normal way in — not to make anyone justify using one.
+     *
+     * @return minutes granted, or null if none were left.
+     */
+    suspend fun usePanicUnlock(targetPackage: String? = null): Int? {
+        if (!settings.consumePanicUnlock()) return null
+
+        val resetHour = settings.resetHour.first()
+        val dayKey = UsageStatsProvider.budgetDayKey(resetHour)
+        val mode = settings.budgetMode.first()
+
+        passDao.insert(
+            PassGrant(
+                dayKey = dayKey,
+                minutesGranted = SettingsRepository.Defaults.PANIC_MINUTES,
+                // No essay bought this one.
+                essayId = null,
+                packageName = if (mode == BudgetMode.PER_APP) targetPackage else null
+            )
+        )
+        return SettingsRepository.Defaults.PANIC_MINUTES
+    }
+
     /** How many passes have been bought today — shown without judgement. */
     suspend fun passesToday(): Int {
         val resetHour = settings.resetHour.first()

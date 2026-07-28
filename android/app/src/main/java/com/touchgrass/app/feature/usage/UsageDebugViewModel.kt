@@ -9,8 +9,11 @@ import com.touchgrass.app.core.data.settings.SettingsRepository
 import com.touchgrass.app.core.overlay.OverlayPermission
 import com.touchgrass.app.core.overlay.WallOverlayManager
 import com.touchgrass.app.core.usage.BudgetState
+import com.touchgrass.app.core.pass.PassRepository
 import com.touchgrass.app.core.usage.MonitorDiagnostics
 import com.touchgrass.app.core.usage.MonitorSnapshot
+import com.touchgrass.app.core.usage.OemGuidance
+import com.touchgrass.app.core.usage.OemSteps
 import com.touchgrass.app.core.usage.UsageMonitorService
 import com.touchgrass.app.core.usage.UsagePermission
 import com.touchgrass.app.core.usage.UsageRepository
@@ -48,11 +51,23 @@ class UsageDebugViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val usageRepository: UsageRepository,
     private val settings: SettingsRepository,
+    private val passRepository: PassRepository,
     private val wallOverlay: WallOverlayManager,
     diagnostics: MonitorDiagnostics
 ) : ViewModel() {
 
     val monitorDiagnostics: StateFlow<MonitorSnapshot> = diagnostics.state
+
+    val panicUnlocksLeft: StateFlow<Int> = passRepository.panicUnlocksLeft.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = 0
+    )
+
+    private val _panicGranted = MutableStateFlow<Int?>(null)
+    val panicGranted: StateFlow<Int?> = _panicGranted.asStateFlow()
+
+    val oemSteps: OemSteps = OemGuidance.forThisDevice()
 
     private val _permissionGranted = MutableStateFlow(UsagePermission.isGranted(context))
     val permissionGranted: StateFlow<Boolean> = _permissionGranted.asStateFlow()
@@ -159,6 +174,18 @@ class UsageDebugViewModel @Inject constructor(
 
     fun hideWall() {
         wallOverlay.hide()
+    }
+
+    /**
+     * Emergency exit. No confirmation dialog, no "are you sure?" — asking
+     * someone to justify an emergency is the opposite of the point.
+     */
+    fun usePanicUnlock() = viewModelScope.launch {
+        _panicGranted.value = passRepository.usePanicUnlock()
+    }
+
+    fun dismissPanicResult() {
+        _panicGranted.value = null
     }
 
     /** Manual poll, so the screen can be checked without waiting for the service. */
