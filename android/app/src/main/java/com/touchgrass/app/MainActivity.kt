@@ -7,12 +7,18 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import com.touchgrass.app.ui.navigation.TouchGrassNavHost
 import com.touchgrass.app.ui.theme.TouchGrassTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+/**
+ * The app's single Activity. Everything else is a Composable inside it —
+ * see tech_stack.md §3.1 (single-Activity architecture).
+ *
+ * [AndroidEntryPoint] lets Hilt inject into this Activity and anything below it.
+ */
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -20,28 +26,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             TouchGrassTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                    TouchGrassNavHost(modifier = Modifier.padding(innerPadding))
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    TouchGrassTheme {
-        Greeting("Android")
     }
 }
