@@ -6,36 +6,35 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.touchgrass.app.feature.scratch.ScratchHomeScreen
-import com.touchgrass.app.feature.scratch.ScratchSecondScreen
+import com.touchgrass.app.feature.gallery.ComponentGalleryScreen
 
 /**
  * Every screen in the app is registered here. Adding a screen means adding a
  * route constant and a `composable(...)` block below.
+ *
+ * Currently only the dev component gallery. Real routes arrive in Phase 2
+ * (pass status, essay editor) and Phase 6 (live feed).
  */
 object Routes {
-    const val HOME = "home"
-    const val SECOND = "second"
+    const val GALLERY = "gallery"
 }
 
 @Composable
 fun TouchGrassNavHost(
+    isNight: Boolean,
+    onToggleNight: () -> Unit,
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController()
 ) {
     NavHost(
         navController = navController,
-        startDestination = Routes.HOME,
+        startDestination = Routes.GALLERY,
         modifier = modifier
     ) {
-        composable(Routes.HOME) {
-            ScratchHomeScreen(
-                onNavigateToSecond = { navController.navigate(Routes.SECOND) }
-            )
-        }
-        composable(Routes.SECOND) {
-            ScratchSecondScreen(
-                onNavigateBack = { navController.popBackStack() }
+        composable(Routes.GALLERY) {
+            ComponentGalleryScreen(
+                isNight = isNight,
+                onToggleNight = onToggleNight
             )
         }
     }
