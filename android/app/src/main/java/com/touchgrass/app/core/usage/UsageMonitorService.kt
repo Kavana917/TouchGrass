@@ -17,8 +17,10 @@ import androidx.core.app.NotificationCompat
 import com.touchgrass.app.MainActivity
 import com.touchgrass.app.R
 import com.touchgrass.app.core.data.settings.SettingsRepository
+import com.touchgrass.app.core.overlay.OverlayPermission
 import com.touchgrass.app.core.overlay.WallOverlayManager
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -48,6 +50,7 @@ class UsageMonitorService : Service() {
     @Inject lateinit var settings: SettingsRepository
     @Inject lateinit var provider: UsageStatsProvider
     @Inject lateinit var wallOverlay: WallOverlayManager
+    @Inject lateinit var diagnostics: MonitorDiagnostics
 
     /** Guards against re-showing the 2-minute warning on every poll. */
     private var warnedForDay: String? = null
@@ -102,7 +105,18 @@ class UsageMonitorService : Service() {
             scope.launch { settings.setMonitorEnabled(true) }
 
             while (true) {
-                val interval = pollOnce()
+                // A throw here used to kill the coroutine outright: polling
+                // stopped forever, with no crash and no log, and the wall
+                // simply never appeared again. Catching keeps the loop alive
+                // and records what broke so it's visible in the app.
+                val interval = try {
+                    pollOnce()
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Throwable) {
+                    diagnostics.recordError(error)
+                    BudgetUrgency.APPROACHING.pollIntervalMillis
+                }
                 delay(interval)
             }
         }
@@ -154,12 +168,24 @@ class UsageMonitorService : Service() {
             else "Time's up for today"
         )
 
+        val shouldShow = watchedInForeground && state.isSpentFor(foreground)
+
         handleWall(
-            shouldShow = watchedInForeground && state.isSpentFor(foreground),
+            shouldShow = shouldShow,
             foreground = foreground,
             remaining = remaining,
             watchedInForeground = watchedInForeground,
             dayKey = state.dayKey
+        )
+
+        diagnostics.recordPoll(
+            foregroundPackage = foreground,
+            watchedInForeground = watchedInForeground,
+            remainingMinutes = remaining,
+            shouldShowWall = shouldShow,
+            wallShowing = wallOverlay.isShowing,
+            overlayPermitted = OverlayPermission.isGranted(this),
+            screenOn = screenOn
         )
 
         return state.urgency.pollIntervalMillis

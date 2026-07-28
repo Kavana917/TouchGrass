@@ -24,6 +24,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.touchgrass.app.core.data.settings.BudgetMode
 import com.touchgrass.app.ui.components.BodyText
+import com.touchgrass.app.ui.components.GrooveSeparator
 import com.touchgrass.app.ui.components.PixelText
 import com.touchgrass.app.ui.components.RetroButton
 import com.touchgrass.app.ui.components.RetroCheckbox
@@ -56,6 +57,7 @@ fun UsageDebugScreen(
     val overlayGranted by viewModel.overlayGranted.collectAsStateWithLifecycle()
     val apps by viewModel.installedApps.collectAsStateWithLifecycle()
     val foreground by viewModel.liveForeground.collectAsStateWithLifecycle()
+    val diag by viewModel.monitorDiagnostics.collectAsStateWithLifecycle()
 
     // Permissions are granted on Settings screens we get no callback from,
     // so re-check whenever this screen comes back to the foreground.
@@ -228,6 +230,47 @@ fun UsageDebugScreen(
                     }
                 }
 
+                // ---- Wall diagnostics ----
+                // Every precondition, so a wall that doesn't appear can be
+                // diagnosed instead of guessed at.
+                RetroWindow(
+                    title = "Wall status",
+                    statusText = if (diag.pollCount > 0L) "polled ${diag.pollCount}x" else "no polls yet",
+                    statusSecondary = if (diag.wallShowing) "wall up" else "wall down"
+                ) {
+                    CheckLine("Overlay permission", diag.overlayPermitted)
+                    CheckLine("Monitor polling", diag.pollCount > 0L)
+                    CheckLine("Screen on", diag.screenOn)
+                    CheckLine("Watched app in front", diag.watchedInForeground)
+                    CheckLine("Time spent", diag.remainingMinutes == 0)
+                    CheckLine("→ wall should show", diag.shouldShowWall)
+
+                    PixelText("foreground: ${diag.foregroundPackage?.takeLast(28) ?: "—"}")
+                    PixelText("remaining: ${diag.remainingMinutes} min")
+
+                    if (diag.lastError != null) {
+                        GrooveSeparator()
+                        PixelText("last error:", color = RetroTheme.colors.accentRed)
+                        BodyText(diag.lastError!!, style = RetroTheme.typography.bodySmall)
+                    }
+
+                    GrooveSeparator()
+                    BodyText(
+                        "Test wall bypasses all detection. If it shows the " +
+                            "wall, the overlay works and the problem is " +
+                            "detection. If it doesn't, it's the permission.",
+                        style = RetroTheme.typography.bodySmall
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        RetroButton(
+                            text = "Test wall",
+                            primary = true,
+                            onClick = { viewModel.testWall() }
+                        )
+                        RetroButton(text = "Hide wall", onClick = { viewModel.hideWall() })
+                    }
+                }
+
                 RetroWindow(title = "Dev") {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         RetroButton(text = "Permissions", onClick = onOpenPermissions)
@@ -243,5 +286,20 @@ fun UsageDebugScreen(
                 onMenuClick = { }
             )
         }
+    }
+}
+
+/** A single pass/fail line in the wall diagnostics. */
+@Composable
+private fun CheckLine(label: String, ok: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        PixelText(
+            text = if (ok) "✓" else "✕",
+            color = if (ok) RetroTheme.colors.bodyText else RetroTheme.colors.accentRed
+        )
+        PixelText(text = label, maxLines = 1)
     }
 }

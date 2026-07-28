@@ -7,7 +7,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.touchgrass.app.core.data.settings.SettingsRepository
 import com.touchgrass.app.core.overlay.OverlayPermission
+import com.touchgrass.app.core.overlay.WallOverlayManager
 import com.touchgrass.app.core.usage.BudgetState
+import com.touchgrass.app.core.usage.MonitorDiagnostics
+import com.touchgrass.app.core.usage.MonitorSnapshot
 import com.touchgrass.app.core.usage.UsageMonitorService
 import com.touchgrass.app.core.usage.UsagePermission
 import com.touchgrass.app.core.usage.UsageRepository
@@ -44,8 +47,12 @@ data class InstalledApp(
 class UsageDebugViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val usageRepository: UsageRepository,
-    private val settings: SettingsRepository
+    private val settings: SettingsRepository,
+    private val wallOverlay: WallOverlayManager,
+    diagnostics: MonitorDiagnostics
 ) : ViewModel() {
+
+    val monitorDiagnostics: StateFlow<MonitorSnapshot> = diagnostics.state
 
     private val _permissionGranted = MutableStateFlow(UsagePermission.isGranted(context))
     val permissionGranted: StateFlow<Boolean> = _permissionGranted.asStateFlow()
@@ -136,6 +143,22 @@ class UsageDebugViewModel @Inject constructor(
 
     fun resetToday() = viewModelScope.launch {
         usageRepository.resetToday()
+    }
+
+    /**
+     * Forces the wall on screen, bypassing all detection.
+     *
+     * The point is to split one unanswerable question ("why isn't the wall
+     * appearing?") into two answerable ones. If this shows the wall, the
+     * overlay works and the problem is detection. If it doesn't, the problem
+     * is the permission or the window itself.
+     */
+    fun testWall() {
+        wallOverlay.show(null)
+    }
+
+    fun hideWall() {
+        wallOverlay.hide()
     }
 
     /** Manual poll, so the screen can be checked without waiting for the service. */
