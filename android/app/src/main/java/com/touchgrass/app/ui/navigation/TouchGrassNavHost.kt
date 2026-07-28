@@ -12,6 +12,7 @@ import com.touchgrass.app.feature.essay.EssayDetailScreen
 import com.touchgrass.app.feature.essay.EssayHistoryScreen
 import com.touchgrass.app.feature.essay.EssayScreen
 import com.touchgrass.app.feature.gallery.ComponentGalleryScreen
+import com.touchgrass.app.feature.permissions.PermissionsScreen
 import com.touchgrass.app.feature.usage.UsageDebugScreen
 
 /**
@@ -25,6 +26,7 @@ object Routes {
     const val ESSAY = "essay"
     const val ESSAY_HISTORY = "essay_history"
     const val ESSAY_DETAIL = "essay_detail/{essayId}"
+    const val PERMISSIONS = "permissions"
     const val GALLERY = "gallery"
 
     fun essayDetail(id: Long) = "essay_detail/$id"
@@ -52,7 +54,13 @@ fun TouchGrassNavHost(
             UsageDebugScreen(
                 onWriteEssay = { navController.navigate(Routes.ESSAY) },
                 onOpenHistory = { navController.navigate(Routes.ESSAY_HISTORY) },
+                onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) },
                 onOpenGallery = { navController.navigate(Routes.GALLERY) }
+            )
+        }
+        composable(Routes.PERMISSIONS) {
+            PermissionsScreen(
+                onBack = { navController.popBackStack() }
             )
         }
         composable(Routes.ESSAY) {

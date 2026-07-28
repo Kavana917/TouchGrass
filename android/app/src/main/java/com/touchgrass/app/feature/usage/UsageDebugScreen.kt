@@ -13,14 +13,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.touchgrass.app.core.overlay.OverlayPermission
-import com.touchgrass.app.core.usage.UsagePermission
 import com.touchgrass.app.ui.components.BodyText
 import com.touchgrass.app.ui.components.PixelText
 import com.touchgrass.app.ui.components.RetroButton
@@ -44,15 +45,26 @@ fun UsageDebugScreen(
     modifier: Modifier = Modifier,
     onWriteEssay: () -> Unit = {},
     onOpenHistory: () -> Unit = {},
+    onOpenPermissions: () -> Unit = {},
     onOpenGallery: () -> Unit = {},
     viewModel: UsageDebugViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val state by viewModel.budgetState.collectAsStateWithLifecycle()
     val granted by viewModel.permissionGranted.collectAsStateWithLifecycle()
     val overlayGranted by viewModel.overlayGranted.collectAsStateWithLifecycle()
     val apps by viewModel.installedApps.collectAsStateWithLifecycle()
     val foreground by viewModel.liveForeground.collectAsStateWithLifecycle()
+
+    // Permissions are granted on Settings screens we get no callback from,
+    // so re-check whenever this screen comes back to the foreground.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshPermission()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Wallpaper(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -90,45 +102,33 @@ fun UsageDebugScreen(
                     }
                 }
 
-                // ---- Permission ----
-                if (!granted) {
-                    RetroWindow(title = "Usage access required") {
-                        BodyText(
-                            "TouchGrass needs usage access to see which app is " +
-                                "open. It reads app names and durations only — " +
-                                "it cannot see anything inside your apps."
-                        )
-                        RetroButton(
-                            text = "Grant access",
-                            primary = true,
-                            onClick = { UsagePermission.openSettings(context) }
-                        )
-                        RetroButton(
-                            text = "I've granted it",
-                            onClick = { viewModel.refreshPermission() }
-                        )
+                // ---- Permissions ----
+                // Always present, granted or not — see PermissionsScreen for
+                // why this isn't a disappearing warning banner.
+                RetroWindow(
+                    title = "Permissions",
+                    statusText = if (granted && overlayGranted) {
+                        "ready"
+                    } else {
+                        "action needed"
                     }
-                }
-
-                // ---- Overlay permission ----
-                if (!overlayGranted) {
-                    RetroWindow(title = "Draw over apps required") {
+                ) {
+                    if (!granted || !overlayGranted) {
                         BodyText(
-                            "Without this, TouchGrass can't put the wall on " +
-                                "screen when your time runs out — Android " +
-                                "won't let an app in the background open a " +
-                                "screen any other way."
+                            buildString {
+                                if (!granted) append("Usage access is missing. ")
+                                if (!overlayGranted) append("Draw over apps is missing. ")
+                                append("The Pass can't work until both are on.")
+                            }
                         )
-                        RetroButton(
-                            text = "Grant access",
-                            primary = true,
-                            onClick = { OverlayPermission.openSettings(context) }
-                        )
-                        RetroButton(
-                            text = "I've granted it",
-                            onClick = { viewModel.refreshPermission() }
-                        )
+                    } else {
+                        BodyText("Usage access and draw-over-apps are both on.")
                     }
+                    RetroButton(
+                        text = "Manage permissions",
+                        primary = !granted || !overlayGranted,
+                        onClick = onOpenPermissions
+                    )
                 }
 
                 // ---- Monitor control ----
@@ -210,7 +210,10 @@ fun UsageDebugScreen(
                 }
 
                 RetroWindow(title = "Dev") {
-                    RetroButton(text = "Component gallery", onClick = onOpenGallery)
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        RetroButton(text = "Permissions", onClick = onOpenPermissions)
+                        RetroButton(text = "Gallery", onClick = onOpenGallery)
+                    }
                 }
 
                 Box(Modifier.height(Dimens.ContentPadding))
