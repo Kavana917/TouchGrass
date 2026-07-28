@@ -34,7 +34,9 @@ data class FeedState(
 @HiltViewModel
 class FeedViewModel @Inject constructor(
     private val streamRepository: StreamRepository,
-    private val settings: SettingsRepository
+    private val settings: SettingsRepository,
+    /** Exposed so the player can resolve tokenised manifests at play time. */
+    val resolver: com.touchgrass.app.core.feed.StreamResolver
 ) : ViewModel() {
 
     private val _categoryFilter = MutableStateFlow<StreamCategory?>(null)

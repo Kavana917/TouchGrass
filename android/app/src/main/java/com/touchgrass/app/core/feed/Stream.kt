@@ -79,7 +79,16 @@ enum class StreamSource {
     YOUTUBE_CHANNEL,
 
     /** Direct HLS manifest from a webcam. */
-    HLS;
+    HLS,
+
+    /**
+     * A SkylineWebcams page URL, resolved to a manifest at play time.
+     *
+     * Their manifest URLs carry a token that is regenerated on every page
+     * load, so nothing can be pinned — which is exactly why this works
+     * where hardcoded lists rot. See StreamResolver.
+     */
+    SKYLINE;
 
     companion object {
         fun fromName(value: String?): StreamSource =

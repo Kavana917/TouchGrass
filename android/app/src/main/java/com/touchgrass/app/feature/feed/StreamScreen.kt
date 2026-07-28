@@ -58,6 +58,8 @@ fun StreamScreen(
 
     var controlsVisible by remember { mutableStateOf(true) }
     var frozen by remember { mutableStateOf(false) }
+    var playbackError by remember(streamId) { mutableStateOf<String?>(null) }
+    var loading by remember(streamId) { mutableStateOf(true) }
 
     val context = LocalContext.current
     val activity = context as? Activity
@@ -112,8 +114,44 @@ fun StreamScreen(
                 stream = stream,
                 audioOn = state.audioOn,
                 paused = frozen,
+                resolver = viewModel.resolver,
+                onError = { message ->
+                    playbackError = message
+                    loading = false
+                },
+                onReady = {
+                    playbackError = null
+                    loading = false
+                },
                 modifier = Modifier.fillMaxSize()
             )
+
+            // A black rectangle tells the user nothing. Say what happened.
+            when {
+                playbackError != null -> Column(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(Dimens.ContentPadding),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    PixelText(text = "Stream unavailable", color = Color.White)
+                    PixelText(
+                        text = playbackError!!,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                    PixelText(
+                        text = "Webcams come and go. Try another, or add your own.",
+                        color = Color.White.copy(alpha = 0.5f)
+                    )
+                }
+
+                loading -> PixelText(
+                    text = "Connecting…",
+                    color = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
         }
 
         if (controlsVisible && stream != null) {

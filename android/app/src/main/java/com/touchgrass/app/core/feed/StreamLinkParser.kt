@@ -18,7 +18,13 @@ object StreamLinkParser {
         val text = input.trim()
         if (text.isEmpty()) return Result.Error("Paste a link first.")
 
-        // Direct HLS — the only non-YouTube case we play.
+        // A SkylineWebcams page — resolved to a manifest at play time,
+        // which is why pasting the ordinary page URL is enough.
+        if (text.contains("skylinewebcams.com", ignoreCase = true)) {
+            return Result.Ok(StreamSource.SKYLINE, text)
+        }
+
+        // Direct HLS.
         if (text.startsWith("http", ignoreCase = true) && text.contains(".m3u8")) {
             return Result.Ok(StreamSource.HLS, text)
         }
