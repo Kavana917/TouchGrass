@@ -12,6 +12,8 @@ import com.touchgrass.app.feature.budget.BudgetSettingsScreen
 import com.touchgrass.app.feature.essay.EssayDetailScreen
 import com.touchgrass.app.feature.essay.EssayHistoryScreen
 import com.touchgrass.app.feature.essay.EssayScreen
+import com.touchgrass.app.feature.feed.FeedListScreen
+import com.touchgrass.app.feature.feed.StreamScreen
 import com.touchgrass.app.feature.gallery.ComponentGalleryScreen
 import com.touchgrass.app.feature.onboarding.OnboardingScreen
 import com.touchgrass.app.feature.permissions.PermissionsScreen
@@ -31,7 +33,11 @@ object Routes {
     const val ESSAY_HISTORY = "essay_history"
     const val ESSAY_DETAIL = "essay_detail/{essayId}"
     const val PERMISSIONS = "permissions"
+    const val FEED = "feed"
+    const val STREAM = "stream/{streamId}"
     const val GALLERY = "gallery"
+
+    fun stream(id: String) = "stream/$id"
 
     fun essayDetail(id: Long) = "essay_detail/$id"
 
@@ -77,11 +83,27 @@ fun TouchGrassNavHost(
                 onOpenHistory = { navController.navigate(Routes.ESSAY_HISTORY) },
                 onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) },
                 onOpenBudget = { navController.navigate(Routes.BUDGET) },
+                onOpenFeed = { navController.navigate(Routes.FEED) },
                 onOpenGallery = { navController.navigate(Routes.GALLERY) }
             )
         }
         composable(Routes.PERMISSIONS) {
             PermissionsScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.FEED) {
+            FeedListScreen(
+                onOpenStream = { id -> navController.navigate(Routes.stream(id)) },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = Routes.STREAM,
+            arguments = listOf(navArgument("streamId") { type = NavType.StringType })
+        ) { entry ->
+            StreamScreen(
+                streamId = entry.arguments?.getString("streamId").orEmpty(),
                 onBack = { navController.popBackStack() }
             )
         }

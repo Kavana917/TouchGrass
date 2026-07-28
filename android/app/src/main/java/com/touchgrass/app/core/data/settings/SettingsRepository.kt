@@ -65,6 +65,8 @@ class SettingsRepository @Inject constructor(
         val PANIC_MONTH = stringPreferencesKey("panic_month")
         val PANIC_USED = intPreferencesKey("panic_used")
         val LAST_SEEN_AT = longPreferencesKey("last_seen_at")
+        val FAVOURITE_STREAMS = stringSetPreferencesKey("favourite_streams")
+        val FEED_AUDIO_ON = booleanPreferencesKey("feed_audio_on")
     }
 
     object Defaults {
@@ -300,6 +302,25 @@ class SettingsRepository @Inject constructor(
 
     suspend fun markSeen() {
         context.dataStore.edit { it[Keys.LAST_SEEN_AT] = System.currentTimeMillis() }
+    }
+
+    val favouriteStreams: Flow<Set<String>> =
+        context.dataStore.data.map { it[Keys.FAVOURITE_STREAMS] ?: emptySet() }
+
+    suspend fun toggleFavouriteStream(streamId: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.FAVOURITE_STREAMS] ?: emptySet()
+            prefs[Keys.FAVOURITE_STREAMS] =
+                if (streamId in current) current - streamId else current + streamId
+        }
+    }
+
+    /** Ambient sound. Off by default — silence is the safer default here. */
+    val feedAudioOn: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.FEED_AUDIO_ON] ?: false }
+
+    suspend fun setFeedAudioOn(value: Boolean) {
+        context.dataStore.edit { it[Keys.FEED_AUDIO_ON] = value }
     }
 
     suspend fun clearPerAppBudget(packageName: String) {

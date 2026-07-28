@@ -82,6 +82,13 @@ dependencies {
     // Settings
     implementation(libs.androidx.datastore.preferences)
 
+    // Live Feed
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.exoplayer.hls)
+    implementation(libs.androidx.media3.ui)
+    implementation(libs.youtube.player)
+    implementation(libs.coil.compose)
+
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
