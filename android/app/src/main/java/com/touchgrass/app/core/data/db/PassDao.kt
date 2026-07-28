@@ -1,0 +1,40 @@
+package com.touchgrass.app.core.data.db
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface EssayDao {
+
+    @Insert
+    suspend fun insert(essay: Essay): Long
+
+    @Query("SELECT * FROM essays ORDER BY writtenAt DESC LIMIT :limit")
+    fun observeRecent(limit: Int = 100): Flow<List<Essay>>
+
+    @Query("SELECT COUNT(*) FROM essays")
+    fun observeCount(): Flow<Int>
+
+    /** Recently used words, so the generator can avoid immediate repeats. */
+    @Query("SELECT word FROM essays ORDER BY writtenAt DESC LIMIT :limit")
+    suspend fun recentWords(limit: Int = 30): List<String>
+}
+
+@Dao
+interface PassDao {
+
+    @Insert
+    suspend fun insert(grant: PassGrant): Long
+
+    /** Total bonus minutes earned on a given budget day. */
+    @Query("SELECT COALESCE(SUM(minutesGranted), 0) FROM pass_grants WHERE dayKey = :dayKey")
+    fun observeMinutesGranted(dayKey: String): Flow<Int>
+
+    @Query("SELECT * FROM pass_grants WHERE dayKey = :dayKey ORDER BY issuedAt DESC")
+    fun observeGrants(dayKey: String): Flow<List<PassGrant>>
+
+    @Query("SELECT COUNT(*) FROM pass_grants WHERE dayKey = :dayKey")
+    suspend fun countForDay(dayKey: String): Int
+}

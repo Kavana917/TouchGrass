@@ -1,6 +1,7 @@
 package com.touchgrass.app.core.usage
 
 import android.content.Context
+import com.touchgrass.app.core.data.db.PassDao
 import com.touchgrass.app.core.data.db.UsageDao
 import com.touchgrass.app.core.data.db.UsageDay
 import com.touchgrass.app.core.data.settings.SettingsRepository
@@ -28,6 +29,7 @@ import kotlin.math.roundToInt
 class UsageRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val usageDao: UsageDao,
+    private val passDao: PassDao,
     private val provider: UsageStatsProvider,
     private val settings: SettingsRepository
 ) {
@@ -48,10 +50,14 @@ class UsageRepository @Inject constructor(
             Quad(resetHour, budget, watched, monitorEnabled)
         }.flatMapLatest { (resetHour, budget, watched, monitorEnabled) ->
             val dayKey = UsageStatsProvider.budgetDayKey(resetHour)
-            usageDao.observeDay(dayKey).map { day ->
+            combine(
+                usageDao.observeDay(dayKey),
+                passDao.observeMinutesGranted(dayKey)
+            ) { day, bonusMinutes ->
                 BudgetState(
                     dayKey = dayKey,
                     budgetMinutes = budget,
+                    bonusMinutes = bonusMinutes,
                     usedMinutes = day?.minutesUsed ?: 0,
                     perApp = day?.perAppJson.toPerAppMap(),
                     permissionGranted = UsagePermission.isGranted(context),

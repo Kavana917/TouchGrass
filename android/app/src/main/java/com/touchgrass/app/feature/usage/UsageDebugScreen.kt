@@ -41,6 +41,8 @@ import com.touchgrass.app.ui.theme.RetroTheme
 @Composable
 fun UsageDebugScreen(
     modifier: Modifier = Modifier,
+    onWriteEssay: () -> Unit = {},
+    onOpenHistory: () -> Unit = {},
     onOpenGallery: () -> Unit = {},
     viewModel: UsageDebugViewModel = hiltViewModel()
 ) {
@@ -70,10 +72,13 @@ fun UsageDebugScreen(
                         text = "${state.remainingMinutes} min left",
                         style = RetroTheme.typography.numeral
                     )
-                    PixelText("used ${state.usedMinutes} of ${state.budgetMinutes}")
+                    PixelText("used ${state.usedMinutes} of ${state.totalAllowanceMinutes}")
+                    if (state.bonusMinutes > 0) {
+                        PixelText("${state.budgetMinutes} free + ${state.bonusMinutes} earned")
+                    }
                     SegmentedProgress(
-                        progress = if (state.budgetMinutes > 0) {
-                            state.usedMinutes.toFloat() / state.budgetMinutes
+                        progress = if (state.totalAllowanceMinutes > 0) {
+                            state.usedMinutes.toFloat() / state.totalAllowanceMinutes
                         } else 0f
                     )
                     if (state.perApp.isNotEmpty()) {
@@ -156,6 +161,28 @@ fun UsageDebugScreen(
                                 )
                             }
                         }
+                    }
+                }
+
+                // ---- The Pass ----
+                RetroWindow(
+                    title = "The Pass",
+                    statusText = if (state.isSpent) "expired" else "active"
+                ) {
+                    BodyText(
+                        if (state.isSpent) {
+                            "Time's up for today. Writing an essay earns more."
+                        } else {
+                            "You can bank a pass now to have it ready later."
+                        }
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        RetroButton(
+                            text = "Write an essay",
+                            primary = state.isSpent,
+                            onClick = onWriteEssay
+                        )
+                        RetroButton(text = "Past essays", onClick = onOpenHistory)
                     }
                 }
 

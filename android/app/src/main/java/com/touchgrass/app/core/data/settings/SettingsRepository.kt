@@ -30,6 +30,9 @@ class SettingsRepository @Inject constructor(
         val RESET_HOUR = intPreferencesKey("reset_hour")
         val MONITOR_ENABLED = booleanPreferencesKey("monitor_enabled")
         val SETUP_COMPLETE = booleanPreferencesKey("setup_complete")
+        val ESSAY_WORDS = intPreferencesKey("essay_words")
+        val PASS_MINUTES = intPreferencesKey("pass_minutes")
+        val USES_DICTATION = booleanPreferencesKey("uses_dictation")
     }
 
     object Defaults {
@@ -46,6 +49,18 @@ class SettingsRepository @Inject constructor(
          * should not be handed a fresh budget two minutes later.
          */
         const val RESET_HOUR = 4
+
+        /** Words required per essay (app_plan.md §2.4). Floor of 50. */
+        const val ESSAY_WORDS = 150
+
+        /**
+         * Minutes bought by one essay.
+         *
+         * Deliberately LESS than the free daily budget — a pass should feel
+         * like a top-up, not a reset. Otherwise the essay becomes a way to
+         * start the day over.
+         */
+        const val PASS_MINUTES = 15
     }
 
     /** Packages whose foreground time counts against the budget. */
@@ -63,6 +78,22 @@ class SettingsRepository @Inject constructor(
 
     val setupComplete: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.SETUP_COMPLETE] ?: false }
+
+    val essayWords: Flow<Int> =
+        context.dataStore.data.map { it[Keys.ESSAY_WORDS] ?: Defaults.ESSAY_WORDS }
+
+    val passMinutes: Flow<Int> =
+        context.dataStore.data.map { it[Keys.PASS_MINUTES] ?: Defaults.PASS_MINUTES }
+
+    /**
+     * Accessibility opt-out (app_plan.md §2.5).
+     *
+     * Blocking dictation harms people who rely on it. Rather than locking
+     * them out to catch a cheater who has easier options anyway, users who
+     * dictate get a longer word requirement instead.
+     */
+    val usesDictation: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.USES_DICTATION] ?: false }
 
     suspend fun setWatchedPackages(packages: Set<String>) {
         context.dataStore.edit { it[Keys.WATCHED_PACKAGES] = packages }
@@ -97,5 +128,17 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setSetupComplete(value: Boolean) {
         context.dataStore.edit { it[Keys.SETUP_COMPLETE] = value }
+    }
+
+    suspend fun setEssayWords(words: Int) {
+        context.dataStore.edit { it[Keys.ESSAY_WORDS] = words.coerceIn(50, 1000) }
+    }
+
+    suspend fun setPassMinutes(minutes: Int) {
+        context.dataStore.edit { it[Keys.PASS_MINUTES] = minutes.coerceIn(1, 120) }
+    }
+
+    suspend fun setUsesDictation(value: Boolean) {
+        context.dataStore.edit { it[Keys.USES_DICTATION] = value }
     }
 }

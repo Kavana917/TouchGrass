@@ -2,6 +2,8 @@ package com.touchgrass.app.core.di
 
 import android.content.Context
 import androidx.room.Room
+import com.touchgrass.app.core.data.db.EssayDao
+import com.touchgrass.app.core.data.db.PassDao
 import com.touchgrass.app.core.data.db.TouchGrassDatabase
 import com.touchgrass.app.core.data.db.UsageDao
 import com.touchgrass.app.core.data.settings.SettingsRepository
@@ -42,6 +44,14 @@ object DataModule {
     @Provides
     fun provideUsageDao(database: TouchGrassDatabase): UsageDao =
         database.usageDao()
+
+    @Provides
+    fun provideEssayDao(database: TouchGrassDatabase): EssayDao =
+        database.essayDao()
+
+    @Provides
+    fun providePassDao(database: TouchGrassDatabase): PassDao =
+        database.passDao()
 
     @Provides
     @Singleton

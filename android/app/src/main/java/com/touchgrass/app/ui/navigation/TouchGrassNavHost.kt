@@ -6,6 +6,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.touchgrass.app.feature.essay.EssayHistoryScreen
+import com.touchgrass.app.feature.essay.EssayScreen
 import com.touchgrass.app.feature.gallery.ComponentGalleryScreen
 import com.touchgrass.app.feature.usage.UsageDebugScreen
 
@@ -13,11 +15,12 @@ import com.touchgrass.app.feature.usage.UsageDebugScreen
  * Every screen in the app is registered here. Adding a screen means adding a
  * route constant and a `composable(...)` block below.
  *
- * Real routes arrive as the phases land: essay editor (Phase 3),
- * live feed (Phase 6), drawing book (Phase 8).
+ * Still to come: live feed (Phase 6), drawing book (Phase 8), FOMO (Phase 10).
  */
 object Routes {
     const val USAGE = "usage"
+    const val ESSAY = "essay"
+    const val ESSAY_HISTORY = "essay_history"
     const val GALLERY = "gallery"
 }
 
@@ -35,7 +38,19 @@ fun TouchGrassNavHost(
     ) {
         composable(Routes.USAGE) {
             UsageDebugScreen(
+                onWriteEssay = { navController.navigate(Routes.ESSAY) },
+                onOpenHistory = { navController.navigate(Routes.ESSAY_HISTORY) },
                 onOpenGallery = { navController.navigate(Routes.GALLERY) }
+            )
+        }
+        composable(Routes.ESSAY) {
+            EssayScreen(
+                onDone = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.ESSAY_HISTORY) {
+            EssayHistoryScreen(
+                onBack = { navController.popBackStack() }
             )
         }
         composable(Routes.GALLERY) {

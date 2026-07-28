@@ -31,7 +31,10 @@ enum class BudgetUrgency(val pollIntervalMillis: Long) {
 
 data class BudgetState(
     val dayKey: String = "",
+    /** The free daily allowance. */
     val budgetMinutes: Int = 0,
+    /** Extra minutes bought with essays today (Phase 3). */
+    val bonusMinutes: Int = 0,
     val usedMinutes: Int = 0,
     val perApp: Map<String, Int> = emptyMap(),
     val foregroundPackage: String? = null,
@@ -40,7 +43,11 @@ data class BudgetState(
     val permissionGranted: Boolean = false,
     val monitorRunning: Boolean = false
 ) {
-    val remainingMinutes: Int get() = (budgetMinutes - usedMinutes).coerceAtLeast(0)
+    /** Everything available today: the free budget plus anything earned. */
+    val totalAllowanceMinutes: Int get() = budgetMinutes + bonusMinutes
+
+    val remainingMinutes: Int
+        get() = (totalAllowanceMinutes - usedMinutes).coerceAtLeast(0)
 
     val isSpent: Boolean get() = remainingMinutes <= 0
 
