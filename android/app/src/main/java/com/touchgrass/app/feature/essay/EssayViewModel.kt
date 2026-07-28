@@ -25,11 +25,19 @@ data class EssayUiState(
     val notice: String? = null,
     val loading: Boolean = true,
     val submitting: Boolean = false,
+    val rerollsLeft: Int = EssayViewModel.MAX_REROLLS,
     /** Minutes granted, once the essay is accepted. */
     val grantedMinutes: Int? = null
 ) {
     val canSubmit: Boolean get() = wordCount >= requiredWords && !submitting
     val remainingWords: Int get() = (requiredWords - wordCount).coerceAtLeast(0)
+
+    /**
+     * Rerolling is only offered before writing starts. Swapping the prompt
+     * after 80 words would either discard that work or leave an essay
+     * attached to a word it isn't about.
+     */
+    val canReroll: Boolean get() = rerollsLeft > 0 && text.isEmpty()
 }
 
 @HiltViewModel
@@ -55,8 +63,30 @@ class EssayViewModel @Inject constructor(
         _uiState.value = EssayUiState(
             word = word,
             requiredWords = required,
+            rerollsLeft = MAX_REROLLS,
             loading = false
         )
+    }
+
+    /**
+     * Swap the prompt for a different one.
+     *
+     * LIMITED ON PURPOSE. app_plan.md §2.4: "if you pick the topic, you'll
+     * pick the same easy topic every time and have a canned paragraph
+     * memorised by week two. Randomness keeps the cost from decaying."
+     * Unlimited rerolls is just picking your own topic with extra steps.
+     *
+     * Two is enough to escape a word you genuinely have nothing for, and
+     * not enough to fish for one you've already written about.
+     */
+    fun reroll() = viewModelScope.launch {
+        val state = _uiState.value
+        if (!state.canReroll) return@launch
+
+        val word = wordGenerator.next()
+        _uiState.update {
+            it.copy(word = word, rerollsLeft = it.rerollsLeft - 1, notice = null)
+        }
     }
 
     /**
@@ -112,5 +142,10 @@ class EssayViewModel @Inject constructor(
         )
 
         _uiState.update { it.copy(submitting = false, grantedMinutes = minutes) }
+    }
+
+    companion object {
+        /** Change to a larger number for more forgiving rerolls. */
+        const val MAX_REROLLS = 2
     }
 }

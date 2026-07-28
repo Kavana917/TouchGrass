@@ -75,6 +75,19 @@ fun EssayScreen(
                     style = RetroTheme.typography.numeral
                 )
 
+                if (state.rerollsLeft > 0 && state.text.isEmpty()) {
+                    RetroButton(
+                        text = "Different word (${state.rerollsLeft} left)",
+                        enabled = state.canReroll,
+                        onClick = { viewModel.reroll() }
+                    )
+                } else if (state.text.isEmpty()) {
+                    PixelText(
+                        text = "No swaps left — this is the one.",
+                        color = RetroTheme.colors.surfaceShadow
+                    )
+                }
+
                 // Human voice, not machine voice (§11). The last sentence is
                 // load-bearing: it removes performance anxiety, which is the
                 // usual reason someone abandons the essay and uninstalls.

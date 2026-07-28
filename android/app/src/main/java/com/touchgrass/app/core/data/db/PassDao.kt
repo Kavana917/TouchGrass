@@ -17,6 +17,9 @@ interface EssayDao {
     @Query("SELECT COUNT(*) FROM essays")
     fun observeCount(): Flow<Int>
 
+    @Query("SELECT * FROM essays WHERE id = :id")
+    fun observeById(id: Long): Flow<Essay?>
+
     /** Recently used words, so the generator can avoid immediate repeats. */
     @Query("SELECT word FROM essays ORDER BY writtenAt DESC LIMIT :limit")
     suspend fun recentWords(limit: Int = 30): List<String>

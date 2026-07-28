@@ -34,6 +34,8 @@ class PassRepository @Inject constructor(
 
     val essayCount: Flow<Int> = essayDao.observeCount()
 
+    fun essay(id: Long): Flow<Essay?> = essayDao.observeById(id)
+
     /**
      * Records the essay and grants the pass, as one operation.
      *
