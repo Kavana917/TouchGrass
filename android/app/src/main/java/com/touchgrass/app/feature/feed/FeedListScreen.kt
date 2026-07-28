@@ -11,8 +11,11 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -23,6 +26,7 @@ import com.touchgrass.app.ui.components.GrooveSeparator
 import com.touchgrass.app.ui.components.PixelText
 import com.touchgrass.app.ui.components.RetroButton
 import com.touchgrass.app.ui.components.RetroWindow
+import com.touchgrass.app.ui.components.SunkenTextField
 import com.touchgrass.app.ui.components.Wallpaper
 import com.touchgrass.app.ui.theme.Dimens
 import com.touchgrass.app.ui.theme.RetroTheme
@@ -91,6 +95,9 @@ fun FeedListScreen(
                 }
             }
 
+            // ---- Add your own ----
+            AddStreamPanel(viewModel)
+
             if (state.streams.isEmpty()) {
                 RetroWindow(title = "No streams") {
                     BodyText("The stream registry didn't load.")
@@ -109,6 +116,85 @@ fun FeedListScreen(
             RetroWindow(title = "") {
                 RetroButton(text = "Back", onClick = onBack)
             }
+        }
+    }
+}
+
+/**
+ * Paste a link, name it, done.
+ *
+ * This is the answer to a problem I can't solve from the build side: I have
+ * no way to check a stream is alive, and a pinned video ID rots within days.
+ * The person holding the phone can verify instantly — so give them the tool
+ * rather than shipping guesses.
+ */
+@Composable
+private fun AddStreamPanel(viewModel: FeedViewModel) {
+    var title by remember { mutableStateOf("") }
+    var place by remember { mutableStateOf("") }
+    var link by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
+
+    val error by viewModel.addError.collectAsStateWithLifecycle()
+    val succeeded by viewModel.addSucceeded.collectAsStateWithLifecycle()
+
+    LaunchedEffect(succeeded) {
+        if (succeeded) {
+            title = ""; place = ""; link = ""
+            expanded = false
+            viewModel.clearAddResult()
+        }
+    }
+
+    RetroWindow(
+        title = "Add a stream",
+        statusText = if (expanded) "paste a link" else "tap to open"
+    ) {
+        if (!expanded) {
+            BodyText("Found a good one? Add it yourself.")
+            RetroButton(text = "Add a stream", onClick = { expanded = true })
+            return@RetroWindow
+        }
+
+        BodyText(
+            "Paste a YouTube link — a channel link is best, because it keeps " +
+                "working when the broadcaster restarts the stream. A direct " +
+                ".m3u8 webcam URL works too."
+        )
+
+        SunkenTextField(
+            value = title,
+            onValueChange = { title = it },
+            placeholder = "Name — e.g. Lofoten Harbour"
+        )
+        SunkenTextField(
+            value = place,
+            onValueChange = { place = it },
+            placeholder = "Place — e.g. Reine, Norway"
+        )
+        SunkenTextField(
+            value = link,
+            onValueChange = { link = it },
+            placeholder = "youtube.com/channel/UC…"
+        )
+
+        error?.let { message ->
+            PixelText(text = message, color = RetroTheme.colors.accentRed)
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            RetroButton(
+                text = "Add",
+                primary = true,
+                onClick = { viewModel.addStream(title, place, link) }
+            )
+            RetroButton(
+                text = "Cancel",
+                onClick = {
+                    expanded = false
+                    viewModel.clearAddResult()
+                }
+            )
         }
     }
 }

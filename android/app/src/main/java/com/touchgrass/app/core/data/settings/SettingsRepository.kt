@@ -67,6 +67,7 @@ class SettingsRepository @Inject constructor(
         val LAST_SEEN_AT = longPreferencesKey("last_seen_at")
         val FAVOURITE_STREAMS = stringSetPreferencesKey("favourite_streams")
         val FEED_AUDIO_ON = booleanPreferencesKey("feed_audio_on")
+        val CUSTOM_STREAMS = stringPreferencesKey("custom_streams")
     }
 
     object Defaults {
@@ -321,6 +322,14 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setFeedAudioOn(value: Boolean) {
         context.dataStore.edit { it[Keys.FEED_AUDIO_ON] = value }
+    }
+
+    /** Streams the user added themselves, as a raw JSON array. */
+    val customStreamsJson: Flow<String> =
+        context.dataStore.data.map { it[Keys.CUSTOM_STREAMS] ?: "[]" }
+
+    suspend fun setCustomStreamsJson(json: String) {
+        context.dataStore.edit { it[Keys.CUSTOM_STREAMS] = json }
     }
 
     suspend fun clearPerAppBudget(packageName: String) {

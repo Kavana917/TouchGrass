@@ -62,7 +62,23 @@ enum class StreamMood(val label: String) {
  * Media3.
  */
 enum class StreamSource {
+    /** A specific YouTube video ID. */
     YOUTUBE,
+
+    /**
+     * A YouTube CHANNEL id — plays whatever that channel is live-streaming
+     * right now, via `youtube.com/embed/live_stream?channel=…`.
+     *
+     * ⚠️ THIS IS THE DURABLE ONE, AND IT MATTERS.
+     *
+     * The first registry hardcoded video IDs and every entry was dead within
+     * days: 24/7 "live" streams are restarted regularly and get a NEW video
+     * ID each time, so a pinned ID rots almost immediately. Channel IDs are
+     * permanent. Prefer this for anything that runs continuously.
+     */
+    YOUTUBE_CHANNEL,
+
+    /** Direct HLS manifest from a webcam. */
     HLS;
 
     companion object {

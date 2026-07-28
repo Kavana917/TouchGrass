@@ -81,4 +81,27 @@ class FeedViewModel @Inject constructor(
     }
 
     fun streamById(id: String): Stream? = state.value.streams.firstOrNull { it.id == id }
+
+    // ---- Adding your own ----
+
+    private val _addError = MutableStateFlow<String?>(null)
+    val addError: StateFlow<String?> = _addError.asStateFlow()
+
+    private val _addSucceeded = MutableStateFlow(false)
+    val addSucceeded: StateFlow<Boolean> = _addSucceeded.asStateFlow()
+
+    fun addStream(title: String, place: String, link: String) = viewModelScope.launch {
+        val error = streamRepository.addStream(title, place, link)
+        _addError.value = error
+        _addSucceeded.value = error == null
+    }
+
+    fun clearAddResult() {
+        _addError.value = null
+        _addSucceeded.value = false
+    }
+
+    fun removeStream(streamId: String) = viewModelScope.launch {
+        streamRepository.removeStream(streamId)
+    }
 }

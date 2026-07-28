@@ -1,6 +1,9 @@
 package com.touchgrass.app.feature.feed
 
 import android.view.ViewGroup
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -44,8 +47,72 @@ fun StreamPlayer(
     when (stream.source) {
         StreamSource.HLS -> HlsPlayer(stream, audioOn, paused, modifier)
         StreamSource.YOUTUBE -> YouTubePlayer(stream, audioOn, paused, modifier)
+        StreamSource.YOUTUBE_CHANNEL -> YouTubeChannelPlayer(stream, audioOn, modifier)
     }
 }
+
+/**
+ * Plays whatever a channel is currently live-streaming.
+ *
+ * Uses YouTube's own `embed/live_stream?channel=…` endpoint in a WebView —
+ * still the official IFrame embed, so still within YouTube's terms, but
+ * resolved by YouTube at play time instead of pinned to a video ID that
+ * expires when the broadcaster restarts the stream.
+ */
+@Composable
+private fun YouTubeChannelPlayer(
+    stream: Stream,
+    audioOn: Boolean,
+    modifier: Modifier
+) {
+    AndroidView(
+        modifier = modifier,
+        factory = { ctx ->
+            WebView(ctx).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                // Without this the embed waits for a tap that the user has
+                // already given by opening the screen.
+                settings.mediaPlaybackRequiresUserGesture = false
+                settings.loadWithOverviewMode = true
+                settings.useWideViewPort = true
+                setBackgroundColor(android.graphics.Color.BLACK)
+
+                // A WebChromeClient is required for HTML5 video to play at
+                // all in a WebView — without one you get a black rectangle.
+                webChromeClient = WebChromeClient()
+                webViewClient = WebViewClient()
+
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+
+                loadUrl(channelEmbedUrl(stream.streamRef, audioOn && stream.hasAudio))
+            }
+        },
+        update = { webView ->
+            // Reload only when the mute state actually changes; the embed
+            // has no JS bridge here to toggle it in place.
+            val wanted = channelEmbedUrl(stream.streamRef, audioOn && stream.hasAudio)
+            if (webView.tag != wanted) {
+                webView.tag = wanted
+                webView.loadUrl(wanted)
+            }
+        },
+        onRelease = { webView ->
+            webView.loadUrl("about:blank")
+            webView.destroy()
+        }
+    )
+}
+
+private fun channelEmbedUrl(channelId: String, audioOn: Boolean): String =
+    "https://www.youtube.com/embed/live_stream" +
+        "?channel=$channelId" +
+        "&autoplay=1" +
+        "&mute=${if (audioOn) 0 else 1}" +
+        "&playsinline=1"
 
 @OptIn(UnstableApi::class)
 @Composable
