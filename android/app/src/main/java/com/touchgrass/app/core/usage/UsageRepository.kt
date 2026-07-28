@@ -72,6 +72,10 @@ class UsageRepository @Inject constructor(
     /** What's on screen right now, for the debug readout. */
     fun currentForegroundPackage(): String? = provider.currentForegroundPackage()
 
+    /** Minutes earned by essays on the given budget day. */
+    suspend fun bonusMinutesFor(resetHour: Int): Int =
+        passDao.observeMinutesGranted(UsageStatsProvider.budgetDayKey(resetHour)).first()
+
     /**
      * Recomputes today's usage from the OS event log and persists it.
      * Called by the monitor service on every poll.

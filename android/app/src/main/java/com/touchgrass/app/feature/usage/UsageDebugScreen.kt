@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.touchgrass.app.core.overlay.OverlayPermission
 import com.touchgrass.app.core.usage.UsagePermission
 import com.touchgrass.app.ui.components.BodyText
 import com.touchgrass.app.ui.components.PixelText
@@ -49,6 +50,7 @@ fun UsageDebugScreen(
     val context = LocalContext.current
     val state by viewModel.budgetState.collectAsStateWithLifecycle()
     val granted by viewModel.permissionGranted.collectAsStateWithLifecycle()
+    val overlayGranted by viewModel.overlayGranted.collectAsStateWithLifecycle()
     val apps by viewModel.installedApps.collectAsStateWithLifecycle()
     val foreground by viewModel.liveForeground.collectAsStateWithLifecycle()
 
@@ -100,6 +102,27 @@ fun UsageDebugScreen(
                             text = "Grant access",
                             primary = true,
                             onClick = { UsagePermission.openSettings(context) }
+                        )
+                        RetroButton(
+                            text = "I've granted it",
+                            onClick = { viewModel.refreshPermission() }
+                        )
+                    }
+                }
+
+                // ---- Overlay permission ----
+                if (!overlayGranted) {
+                    RetroWindow(title = "Draw over apps required") {
+                        BodyText(
+                            "Without this, TouchGrass can't put the wall on " +
+                                "screen when your time runs out — Android " +
+                                "won't let an app in the background open a " +
+                                "screen any other way."
+                        )
+                        RetroButton(
+                            text = "Grant access",
+                            primary = true,
+                            onClick = { OverlayPermission.openSettings(context) }
                         )
                         RetroButton(
                             text = "I've granted it",

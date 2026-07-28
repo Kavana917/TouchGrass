@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.touchgrass.app.core.data.settings.SettingsRepository
+import com.touchgrass.app.core.overlay.OverlayPermission
 import com.touchgrass.app.core.usage.BudgetState
 import com.touchgrass.app.core.usage.UsageMonitorService
 import com.touchgrass.app.core.usage.UsagePermission
@@ -49,6 +50,9 @@ class UsageDebugViewModel @Inject constructor(
     private val _permissionGranted = MutableStateFlow(UsagePermission.isGranted(context))
     val permissionGranted: StateFlow<Boolean> = _permissionGranted.asStateFlow()
 
+    private val _overlayGranted = MutableStateFlow(OverlayPermission.isGranted(context))
+    val overlayGranted: StateFlow<Boolean> = _overlayGranted.asStateFlow()
+
     private val _installedApps = MutableStateFlow<List<InstalledApp>>(emptyList())
     val installedApps: StateFlow<List<InstalledApp>> = _installedApps.asStateFlow()
 
@@ -74,6 +78,7 @@ class UsageDebugViewModel @Inject constructor(
 
     fun refreshPermission() {
         _permissionGranted.value = UsagePermission.isGranted(context)
+        _overlayGranted.value = OverlayPermission.isGranted(context)
     }
 
     /**

@@ -14,6 +14,18 @@
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
+    <!--
+        Draw over other apps. This is how the wall appears on top of
+        Instagram.
+
+        It is NOT optional decoration: since Android 10, an app cannot start
+        an Activity from the background. startActivity() from our service
+        fails SILENTLY - no crash, no log, nothing happens. Drawing a
+        TYPE_APPLICATION_OVERLAY window is the only way to put something on
+        screen over another app.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
     <!-- Keeps the usage monitor alive while a watched app is in the foreground. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />

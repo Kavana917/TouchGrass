@@ -1,5 +1,6 @@
 package com.touchgrass.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,20 +22,65 @@ import dagger.hilt.android.AndroidEntryPoint
 /**
  * The app's single Activity. Everything else is a Composable inside it —
  * see tech_stack.md §3.1 (single-Activity architecture).
- *
- * [AndroidEntryPoint] lets Hilt inject into this Activity and anything below it.
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { TouchGrassApp() }
+        renderFrom(intent)
+    }
+
+    /**
+     * The wall launches us with extras rather than through normal
+     * navigation, so a fresh Intent has to re-render.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        renderFrom(intent)
+    }
+
+    private fun renderFrom(intent: Intent?) {
+        val openEssay = intent?.getBooleanExtra(EXTRA_OPEN_ESSAY, false) ?: false
+        val returnTo = intent?.getStringExtra(EXTRA_RETURN_TO_PACKAGE)
+
+        setContent {
+            TouchGrassApp(
+                startOnEssay = openEssay,
+                returnToPackage = returnTo,
+                onReturnToApp = { pkg -> launchPackage(pkg) }
+            )
+        }
+    }
+
+    /**
+     * Sends the user back to the app the wall interrupted, once they've
+     * paid the toll. Landing back on the debug screen after writing 150
+     * words would be a small betrayal of what they just bought.
+     */
+    private fun launchPackage(packageName: String) {
+        val launch = packageManager.getLaunchIntentForPackage(packageName)
+        if (launch != null) {
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(launch)
+        }
+        finish()
+    }
+
+    companion object {
+        const val EXTRA_OPEN_ESSAY = "open_essay"
+        const val EXTRA_RETURN_TO_PACKAGE = "return_to_package"
     }
 }
 
 @Composable
-private fun TouchGrassApp() {
+private fun TouchGrassApp(
+    startOnEssay: Boolean,
+    returnToPackage: String?,
+    onReturnToApp: (String) -> Unit
+) {
     // Night state lives above the theme so the gallery can toggle it.
     // In Phase 5 this moves into DataStore as a user setting.
     val systemNight = isSystemInDarkTheme()
@@ -45,6 +91,9 @@ private fun TouchGrassApp() {
             TouchGrassNavHost(
                 isNight = isNight,
                 onToggleNight = { isNight = !isNight },
+                startOnEssay = startOnEssay,
+                returnToPackage = returnToPackage,
+                onReturnToApp = onReturnToApp,
                 modifier = Modifier.padding(innerPadding)
             )
         }

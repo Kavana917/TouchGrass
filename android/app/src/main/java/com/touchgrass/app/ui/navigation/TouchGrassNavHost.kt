@@ -35,11 +35,17 @@ fun TouchGrassNavHost(
     isNight: Boolean,
     onToggleNight: () -> Unit,
     modifier: Modifier = Modifier,
+    startOnEssay: Boolean = false,
+    returnToPackage: String? = null,
+    onReturnToApp: (String) -> Unit = {},
     navController: NavHostController = rememberNavController()
 ) {
     NavHost(
         navController = navController,
-        startDestination = Routes.USAGE,
+        // Arriving from the wall goes straight to the essay. Making someone
+        // navigate there themselves after being interrupted would be
+        // needless friction on top of friction.
+        startDestination = if (startOnEssay) Routes.ESSAY else Routes.USAGE,
         modifier = modifier
     ) {
         composable(Routes.USAGE) {
@@ -51,7 +57,17 @@ fun TouchGrassNavHost(
         }
         composable(Routes.ESSAY) {
             EssayScreen(
-                onDone = { navController.popBackStack() }
+                onDone = {
+                    // Paid the toll from the wall? Go back to where you were.
+                    // Otherwise just close the screen.
+                    if (returnToPackage != null) {
+                        onReturnToApp(returnToPackage)
+                    } else if (!navController.popBackStack()) {
+                        navController.navigate(Routes.USAGE) {
+                            popUpTo(Routes.ESSAY) { inclusive = true }
+                        }
+                    }
+                }
             )
         }
         composable(Routes.ESSAY_HISTORY) {

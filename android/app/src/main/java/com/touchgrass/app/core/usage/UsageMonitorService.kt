@@ -12,10 +12,12 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.touchgrass.app.MainActivity
 import com.touchgrass.app.R
 import com.touchgrass.app.core.data.settings.SettingsRepository
+import com.touchgrass.app.core.overlay.WallOverlayManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +27,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -44,6 +47,10 @@ class UsageMonitorService : Service() {
     @Inject lateinit var usageRepository: UsageRepository
     @Inject lateinit var settings: SettingsRepository
     @Inject lateinit var provider: UsageStatsProvider
+    @Inject lateinit var wallOverlay: WallOverlayManager
+
+    /** Guards against re-showing the 2-minute warning on every poll. */
+    private var warnedForDay: String? = null
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var pollJob: Job? = null
@@ -116,15 +123,20 @@ class UsageMonitorService : Service() {
 
         if (!screenOn) {
             // Screen is off. Nothing can be accumulating, so don't burn
-            // cycles asking.
+            // cycles asking. Also take the wall down — there is nothing to
+            // block, and leaving it up means it's the first thing on screen
+            // when they unlock for an unrelated reason.
+            if (wallOverlay.isShowing) withContext(Dispatchers.Main) { wallOverlay.hide() }
             return BudgetUrgency.IDLE.pollIntervalMillis
         }
 
         val resetHour = settings.resetHour.first()
         val budget = settings.dailyBudgetMinutes.first()
+        val bonus = usageRepository.bonusMinutesFor(resetHour)
 
         val usedMinutes = usageRepository.refreshUsage(resetHour, watched)
-        val remaining = (budget - usedMinutes).coerceAtLeast(0)
+        val allowance = budget + bonus
+        val remaining = (allowance - usedMinutes).coerceAtLeast(0)
 
         val foreground = provider.currentForegroundPackage()
         val watchedInForeground = foreground in watched
@@ -134,6 +146,13 @@ class UsageMonitorService : Service() {
             else "Time's up for today"
         )
 
+        handleWall(
+            watchedInForeground = watchedInForeground,
+            foreground = foreground,
+            remaining = remaining,
+            dayKey = UsageStatsProvider.budgetDayKey(resetHour)
+        )
+
         // The adaptive-polling table from app_plan.md §2.7.
         return when {
             !watchedInForeground -> BudgetUrgency.IDLE
@@ -141,6 +160,42 @@ class UsageMonitorService : Service() {
             remaining <= 5 -> BudgetUrgency.APPROACHING
             else -> BudgetUrgency.RELAXED
         }.pollIntervalMillis
+    }
+
+    /**
+     * Decides whether the wall should be up right now.
+     *
+     * Deliberately re-evaluated every poll rather than fired once on the
+     * zero crossing: the user can dismiss the wall, wander back into
+     * Instagram, and it must reappear. A one-shot trigger would let them
+     * back in for free.
+     */
+    private suspend fun handleWall(
+        watchedInForeground: Boolean,
+        foreground: String?,
+        remaining: Int,
+        dayKey: String
+    ) = withContext(Dispatchers.Main) {
+        val shouldShow = watchedInForeground && remaining <= 0
+
+        when {
+            shouldShow && !wallOverlay.isShowing -> wallOverlay.show(foreground)
+
+            // They left the watched app, or earned more time. Either way the
+            // wall has no business being on screen.
+            !shouldShow && wallOverlay.isShowing -> wallOverlay.hide()
+        }
+
+        // Gentle heads-up at 2 minutes (app_plan.md §2.2) — a nudge, not the
+        // wall. Once per day, so it never becomes nagging.
+        if (watchedInForeground && remaining in 1..2 && warnedForDay != dayKey) {
+            warnedForDay = dayKey
+            Toast.makeText(
+                this@UsageMonitorService,
+                "$remaining min left today",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     // ---- Notification ----
@@ -188,6 +243,9 @@ class UsageMonitorService : Service() {
 
     override fun onDestroy() {
         pollJob?.cancel()
+        // Never leave the wall stranded on screen with nothing running to
+        // take it down again.
+        runCatching { wallOverlay.hide() }
         runCatching { unregisterReceiver(screenReceiver) }
         scope.launch { settings.setMonitorEnabled(false) }
         scope.cancel()
