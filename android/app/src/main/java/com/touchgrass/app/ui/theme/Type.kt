@@ -93,7 +93,7 @@ data class RetroTypography(
     ),
 
     /**
-     * Essays, digest text, stream descriptions, onboarding prose, settings
+     * Essays, digest text, onboarding prose, settings
      * explanations. Anything read in sentences. 1.5 line height.
      */
     val body: TextStyle = TextStyle(

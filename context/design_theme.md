@@ -23,7 +23,7 @@ This isn't decoration picked at random — it does three jobs the product needs:
 | **A non-judgemental machine voice.** An old OS states facts: `The pass has expired.` It doesn't have feelings about you. | The app must never scold. A 1997 dialog box is incapable of disappointment — it's the least guilt-inducing narrator available. |
 | **Deliberate friction that reads as charm, not punishment.** Old software made you click OK. | The whole product is friction-over-prohibition. Here the friction is *in costume*, so paying the toll feels like using a quirky machine instead of being told off. |
 
-**And the counterweight:** the retro layer is a *frame*, never a *filter*. It never lands on top of a live stream, a drawing canvas, or an essay you're writing. See §8.
+**And the counterweight:** the retro layer is a *frame*, never a *filter*. It never lands on top of a drawing canvas or an essay you're writing. See §8.
 
 ---
 
@@ -48,7 +48,7 @@ Confirmed with the project owner before this document was written. Everything do
 | # | Decision | Choice | What it means in practice |
 |---|---|---|---|
 | 1 | **Fidelity** | **Retro chrome, calm interiors** | Every screen is a Win95 window — title bar, bevels, status bar. What's *inside* gets modern spacing and touch targets. We keep the costume, not the 2px paddings. |
-| 2 | **Typography** | **Pixel display + clean sans body** | Pixel font for chrome, labels, buttons, numbers. A normal sans for anything you read in sentences — essays, digest text, stream descriptions. |
+| 2 | **Typography** | **Pixel display + clean sans body** | Pixel font for chrome, labels, buttons, numbers. A normal sans for anything you read in sentences — essays, digest text, onboarding prose, settings explanations. |
 | 3 | **Palette** | **XP sky + Win95 gray** | Pixel sky-and-hills wallpaper as the backdrop; gray beveled windows floating on it; navy title bars. |
 | 4 | **Dark mode** | **Night = dusk wallpaper, same chrome** | Windows stay gray at all hours. Only the wallpaper shifts to a dusk/night sky. Authentic *and* cheap. |
 
@@ -108,7 +108,7 @@ Night flips the wallpaper only. **Windows, buttons, and text never recolour.** O
 | **Chrome & controls** | Pixel | 16sp | Buttons, menus, tabs, labels, status bar |
 | **Numerals** | Pixel | 20–32sp | Time remaining, word counter, page numbers |
 | **Headings** | Pixel | 20–24sp | Section titles inside windows |
-| **Body** | Sans (Inter / Roboto) | 16sp / 1.5 line | **Essays, FOMO digest text, stream descriptions, onboarding prose, settings explanations** |
+| **Body** | Sans (Inter / Roboto) | 16sp / 1.5 line | **Essays, FOMO digest text, onboarding prose, settings explanations** |
 | **Body small** | Sans | 14sp / 1.5 | Captions, timestamps, secondary notes |
 
 **The dividing line:** if you *scan* it, it's pixel. If you *read* it, it's sans. A 150-word essay in a bitmap font is a worse essay-writing experience, and the essay is the product.
@@ -157,7 +157,7 @@ All borders are **1px hard lines**. No border radius anywhere. No shadows except
 | 4 | **Sunken field** | White well, 1px sunken bevel, 12dp padding, sans body text. | Essay editor, search, settings inputs |
 | 5 | **Menu bar** | 28dp strip on `#C0C0C0`, pixel labels with mnemonic underlines. Row highlight = `#000080` + white text. | Window headers, overflow menus |
 | 6 | **Context menu** | Raised panel, 40dp rows, `▸` for submenus, 1px `#808080` groove separators — exactly as in `3.webp`. | Long-press actions |
-| 7 | **List view** | Column headers as small raised buttons, alternating-free white rows, navy selection bar. As in `4.webp`. | FOMO digest, essay history, stream list |
+| 7 | **List view** | Column headers as small raised buttons, alternating-free white rows, navy selection bar. As in `4.webp`. | FOMO digest, essay history |
 | 8 | **Status bar** | 24dp, sunken well(s), pixel text, resize grip glyph at right. **Always states a fact, never an opinion.** | Bottom of most windows |
 | 9 | **Dialog / balloon** | Small window, no menu bar, `paperCream` or gray face, message + 1–2 buttons. The `2.webp` form. | Confirmations, the Instagram overlay |
 | 10 | **Pixel icon** | 32×32 base grid, 1px `#0A0A0A` outline, flat fills, 2–3 shading tones, no AA. Scale **only** at 2×/3× nearest-neighbour (32→64→96). | Navigation, tools, empty states |
@@ -186,11 +186,10 @@ The one permitted flourish is the **wireframe zoom** — a 1px outline rectangle
 
 ## 8. Where the theme steps back
 
-Three surfaces where chrome is a liability. These are load-bearing exceptions, not oversights.
+Two surfaces where chrome is a liability. These are load-bearing exceptions, not oversights.
 
 | Surface | What happens |
 |---|---|
-| **Live Feed, full screen** | The window frame drops away. Clear Mode is already in the plan — the stream fills the display with zero chrome. A live river is the point; a title bar over it is noise. |
 | **Drawing canvas** | Pure white or `paperCream` sunken well. No pixel grid, no texture, no overlay. Tools live in a Paint-style palette *beside* the canvas, never on it. The canvas is the user's, not the theme's. |
 | **Essay editor** | Retro window frame, but the writing area is a plain sunken white field with 16sp sans and generous line height. Someone is writing 150 words by hand under mild frustration — nothing in that rectangle may add friction. |
 
@@ -221,7 +220,6 @@ Each surface gets a desktop-era counterpart. Worth following: it makes new scree
 | **Pass status & history** | Control Panel / Properties | Tabbed, factual, sunken info wells |
 | **Essay editor** | Notepad — `Untitled — Essay` | Menu bar, sunken paper, `words: 84 / 150` in the status bar |
 | **Instagram overlay** | Modal dialog box | Cream balloon, centred, 2 buttons. Must appear *instantly* — see plan §2.2 |
-| **Live Feed map** | A window containing a map | Full-screen stream maximises → Clear Mode strips chrome entirely |
 | **Drawing Book** | MS Paint | Tool palette, page tabs along the bottom |
 | **FOMO digest** | A file list view | Columns, finite rows. Empty state reads `0 items — you're caught up.` — the `4.webp` status bar, doing real work |
 | **Settings** | Control Panel | Grouped, tabbed, checkbox-heavy |
@@ -267,6 +265,6 @@ The theme carries a voice, and it has one hard boundary.
 | **Primitive** | One double-bevel recipe, 1px hard borders, zero corner radius |
 | **Forms** | 10 components (§6.2) — an 11th needs a conversation |
 | **Motion** | Stepped, near-zero. One wireframe zoom, used sparingly |
-| **Exceptions** | Streams, canvas, and essay text are chrome-free |
+| **Exceptions** | Canvas and essay text are chrome-free |
 | **Floor** | 48dp targets · 16sp minimum · disabled ≠ colour alone |
 | **Voice** | Machine for facts, human for choices, never scolding |

@@ -57,7 +57,6 @@ fun UsageDebugScreen(
     onOpenHistory: () -> Unit = {},
     onOpenPermissions: () -> Unit = {},
     onOpenBudget: () -> Unit = {},
-    onOpenFeed: () -> Unit = {},
     onOpenGallery: () -> Unit = {},
     viewModel: UsageDebugViewModel = hiltViewModel()
 ) {
@@ -232,24 +231,6 @@ fun UsageDebugScreen(
                             }
                         }
                     }
-                }
-
-                // ---- Live Feed ----
-                // Placed above the Pass on purpose: when time is spent, the
-                // alternative should be the more visible option, not a
-                // consolation prize under the thing that just blocked you.
-                RetroWindow(
-                    title = "Live Feed",
-                    statusText = "free"
-                ) {
-                    BodyText(
-                        "Somewhere real, happening right now. Never costs a pass."
-                    )
-                    RetroButton(
-                        text = "Open Live Feed",
-                        primary = state.isSpent,
-                        onClick = onOpenFeed
-                    )
                 }
 
                 // ---- The Pass ----

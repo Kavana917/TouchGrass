@@ -16,7 +16,7 @@ Most screen-time apps try to **stop** you. They put up a wall, you tap "ignore f
 This app does two things differently:
 
 1. **It charges a real price instead of saying no.** You can always get back into Instagram — but the toll is writing an essay by hand, on a word you didn't choose, with no paste and no shortcuts. Nothing is forbidden. It's just expensive enough that the reflex-open dies, and only the deliberate open survives.
-2. **It gives the urge somewhere else to go.** Blocking a habit leaves a hole. So the app also holds a calm, slow, *live* place to be — a river somewhere in the world, streaming right now — and a drawing book you can pull up over it.
+2. **It gives the urge somewhere else to go.** Blocking a habit leaves a hole. So the app also holds a drawing book and a finite daily digest of what you're missing.
 
 The reflex isn't really a craving for Instagram. It's a craving for *somewhere to put your attention for a minute.* This app answers that craving with something that doesn't cost you an hour.
 
@@ -31,14 +31,13 @@ People who open Instagram without deciding to. ADHD brains, compulsive scrollers
 
 Corollary: the toll must be **honest work** — real, non-trivial, non-automatable, and not busywork you can zone out through. Writing prose about a random word qualifies. Tapping "I'm sure" fifteen times does not.
 
-### The four features
+### The three features
 
 | # | Feature | One-line purpose |
 |---|---------|------------------|
 | 1 | **The Pass** | Time budget for social apps; renewed only by writing an essay |
-| 2 | **Live Feed** | Full-screen live streams of real places, chosen from a world map |
-| 3 | **Drawing Book** | Multi-page sketchbook, standalone or pulled up over a live stream |
-| 4 | **FOMO** | A finite daily digest of what's trending, so quitting doesn't feel like falling behind |
+| 2 | **Drawing Book** | Multi-page sketchbook for absorbing the hands-and-eyes impulse |
+| 3 | **FOMO** | A finite daily digest of what's trending, so quitting doesn't feel like falling behind |
 
 ### Anti-goals — what this app is deliberately *not*
 
@@ -48,7 +47,7 @@ Corollary: the toll must be **honest work** — real, non-trivial, non-automatab
 - **Not gamified.** No points, no badges, no leaderboard. The reward for writing the essay is the thing you wanted; that's enough.
 - **Not a social network.** No accounts, no sharing to a timeline, no followers. Your essays and drawings are yours and stay on your device.
 
-### How the four features relate
+### How the three features relate
 
 ```mermaid
 flowchart TB
@@ -62,27 +61,24 @@ flowchart TB
 
     BLOCK --> CHOICE{"User chooses"}
     CHOICE -->|"Pay the toll"| ESSAY["Write the essay"]
-    CHOICE -->|"Back off"| OFFER["Offered an alternative"]
+    CHOICE -->|"Back off"| OFFER["Dismissed to home"]
 
     ESSAY -->|accepted| IG
 
     OFFER --> HOME
-    HOME --> LIVE["Live Feed"]
     HOME --> DRAW["Drawing Book"]
     HOME --> FOMO["FOMO digest"]
 
-    LIVE -.->|"draw on top"| DRAW
     FOMO -.->|"kills the<br/>'what did I miss' itch"| U
 
     style GATE fill:#4a3f6b,color:#fff
     style BLOCK fill:#6b3f3f,color:#fff
     style ESSAY fill:#6b5a3f,color:#fff
-    style LIVE fill:#3f5a6b,color:#fff
     style DRAW fill:#3f6b52,color:#fff
     style FOMO fill:#5a3f6b,color:#fff
 ```
 
-**Feature 1 is the wall. Features 2–4 are the doors next to it.** That relationship is the whole product — a wall with no door is a wall people uninstall.
+**Feature 1 is the wall. Features 2–3 are the doors next to it.** That relationship is the whole product — a wall with no door is a wall people uninstall.
 
 ---
 
@@ -134,7 +130,7 @@ flowchart TD
     OVL --> DECIDE{"What now?"}
 
     DECIDE -->|"Write essay"| GEN["Random word generated"]
-    DECIDE -->|"Not worth it"| EXIT["Send to Home screen<br/>+ suggest Live Feed"]
+    DECIDE -->|"Not now"| EXIT["Send to Home screen"]
 
     GEN --> TYPE["Essay editor<br/>paste blocked"]
     TYPE --> VAL{"Meets<br/>requirements?"}
@@ -146,8 +142,6 @@ flowchart TD
     ISSUE --> RET{"Came from<br/>the overlay?"}
     RET -->|Yes| BACK["Dismiss overlay<br/>return to Instagram"]
     RET -->|No| DONE["Pass banked<br/>stay in our app"]
-
-    EXIT --> LF["Live Feed"]
 
     style OVL fill:#6b3f3f,color:#fff
     style TYPE fill:#6b5a3f,color:#fff
@@ -297,184 +291,43 @@ Net result: the wall appears in about a second in the case that matters, and the
 
 ---
 
-## 3. Feature 2 — Live Feed
+## 3. Feature 2 — The Drawing Book
 
 ### 3.1 The idea
 
-A world map. Pins on it. Each pin is a **live stream running right now** — a river in Norway, a street corner in Tokyo, a watering hole in Namibia, a harbour in Maine, the Earth from the ISS.
-
-Tap a pin, and it goes **full screen**. No comments. No like button. No next video. No recommendations. Just the place, as it is, right now.
-
-The pitch to the user: *you wanted to look at something. Look at this instead.* And crucially — **it doesn't cost a pass.** This is the alternative, not another thing being rationed.
-
-### 3.2 Why live, specifically
-
-Not recorded nature footage — **live**. The difference is the whole point:
-
-- It's genuinely happening. That's a different feeling from watching a file.
-- Nothing is edited for retention. No cuts every 1.4 seconds, no music swell, no hook. Your nervous system gets to come down.
-- It has no ending, so there's no "next episode" pull. You leave when you're done, not when it's done.
-- It's *somewhere else*. Time zones, weather, and darkness are real. Sitting with a Norwegian river at 3am their time is a small, quiet kind of travel.
-
-### 3.3 User flow
-
-```mermaid
-flowchart TD
-    ENTRY["Live Feed opened"] --> MAP["World map<br/>pins by category"]
-
-    MAP --> FILTER{"Filter?"}
-    FILTER -->|"Category"| CAT["Rivers · Coasts · Mountains<br/>Cities · Wildlife · Space"]
-    FILTER -->|"Mood"| MOOD["Calm · Alive · Dark & quiet"]
-    FILTER -->|"Surprise me"| RAND["Random pin"]
-    FILTER -->|"None"| BROWSE["Pan & zoom freely"]
-
-    CAT --> PIN
-    MOOD --> PIN
-    BROWSE --> PIN["Tap a pin"]
-    RAND --> PLAY
-
-    PIN --> PREVIEW["Card: name, place,<br/>local time, weather,<br/>live thumbnail"]
-    PREVIEW --> PLAY["Full-screen player"]
-
-    PLAY --> OPTS{"In-stream options"}
-    OPTS -->|"Clear Mode"| CLEAR["All UI gone<br/>tap to reveal"]
-    OPTS -->|"Open drawing book"| OVERLAY["Book sheet slides up<br/>swipe down to peek at view"]
-    OPTS -->|"Audio toggle"| AUDIO["Ambient sound on/off"]
-    OPTS -->|"Save"| FAV["Add to Favourites"]
-    OPTS -->|"Back"| MAP
-
-    CLEAR -->|"tap"| PLAY
-    OVERLAY --> DRAWDOC["→ Feature 3"]
-
-    style PLAY fill:#3f5a6b,color:#fff
-    style CLEAR fill:#2f4452,color:#fff
-    style OVERLAY fill:#3f6b52,color:#fff
-```
-
-### 3.4 Clear Mode
-
-The signature interaction. Everything disappears — status bar, navigation, player controls, the stream title, everything. Full immersive mode. Only the view remains.
-
-- One tap anywhere brings controls back for 3 seconds, then they fade again
-- Screen stays awake (`FLAG_KEEP_SCREEN_ON`) while active
-- Optional auto-dim after 10 minutes to save battery, waking on touch
-- Optional sleep timer (15 / 30 / 60 min / off) so it doesn't run all night
-- Entering Clear Mode should have a slow fade, not a snap. The transition is part of the calming.
-
-### 3.5 Does Live Feed consume the Pass?
-
-**No. Recommendation: it must be free and unlimited.**
-
-The whole architecture of the app is: expensive door on one side, open door on the other. If Live Feed is also rationed, the app is just a punishment box, and the user uninstalls it. There is no version of "watching a river for 40 minutes" that needs to be prevented.
-
-*(Optional, opt-in: a "you've been here two hours" gentle check-in. Not a block — a note. Off by default.)*
-
-### 3.6 The curated stream registry
-
-Streams are hand-picked and hand-tagged. Quality over quantity — **~50 excellent streams at launch** beats 500 unreliable ones.
-
-Schema per entry:
-
-```json
-{
-  "id": "no-lofoten-harbour",
-  "title": "Lofoten Harbour",
-  "place": "Reine, Norway",
-  "lat": 67.9333,
-  "lng": 13.0833,
-  "category": "coast",
-  "mood": ["calm", "dark-and-quiet"],
-  "source": "youtube",
-  "embed_type": "youtube_iframe",
-  "stream_id": "XXXXXXXXXXX",
-  "has_audio": true,
-  "audio_type": "ambient",
-  "timezone": "Europe/Oslo",
-  "last_verified": "2026-07-27",
-  "attribution": "Channel Name"
-}
-```
-
-**`last_verified`** is the field that matters most in practice — streams die constantly. Channels go offline, cameras break, links rot.
-
-**Health checking.** A scheduled server-side job pings every stream daily and flags dead ones. The registry ships as a **remote JSON file fetched and cached by the client**, so a dead stream can be swapped without an app update. Bundle a fallback copy in the APK so the map works offline / on first launch.
-
-**Good source families to curate from:** explore.org (excellent, permissive, wildlife-heavy), EarthCam, Skyline Webcams, NASA/ISS live, national park services, harbour and airport cams, university weather cams.
-
-### 3.7 Technical notes
-
-**Map.** **MapLibre GL Native** with OpenStreetMap or free vector tiles (Protomaps / MapTiler free tier). Rationale: no per-load billing, no API key in the client, and full styling control — which matters, because the map should look **calm and dark**, not like a navigation app. Google Maps SDK is the fallback if custom styling proves painful, but its cost model scales badly for a free app.
-
-**Playback — two separate paths:**
-
-| Source type | Player | Notes |
-|---|---|---|
-| Direct HLS/DASH webcams | **Media3 / ExoPlayer** | Native, efficient, fully controllable, can be composited under other views |
-| YouTube live streams | **Official IFrame player** (via `android-youtube-player` WebView wrapper) | Required by YouTube ToS |
-
-**Why not just extract YouTube's HLS URL?** Because that violates YouTube's Terms of Service, breaks whenever they change their internals, and is a straightforward path to a takedown. Use the IFrame player for YouTube content.
-
-**Note on the drawing book over streams.** An earlier draft had the drawing canvas rendered *translucent* on top of the video so you could trace the scene. That collided with YouTube's Terms of Service, which prohibit obscuring or overlaying the embedded player. **Design decision: the book is now an opaque sheet that slides up over the stream** (see §4.5) rather than a see-through layer. This sidesteps the ToS question entirely and works identically on every stream regardless of source — no per-stream capability flags, no "this feature isn't available here" messages.
-
-*(Door left open: true translucent tracing is legally fine on direct-HLS webcam sources, which aren't governed by YouTube's terms. If tracing turns out to be missed, it can return later as a capability limited to those streams. Not in scope now.)*
-
-**Bandwidth.** Live video is expensive. Ship a quality selector, default to "auto," and warn on mobile data. Add a data-saver mode that caps resolution.
-
-**Playback while the sheet is up.** The stream keeps playing behind the book sheet. Don't pause it — the point of swiping the sheet down is to glance at a *live* view, and pausing would break that. Do drop video quality while it's hidden to save bandwidth.
-
----
-
-## 4. Feature 3 — The Drawing Book
-
-### 4.1 The idea
-
 A drawing book, like the kind a child has. Not a design tool — a **book**. It has pages. You flip through them. You draw whatever you want, badly, and nobody sees it.
 
-Two ways in:
+Open the book, make a new page, draw. Blank paper.
 
-1. **Standalone** — open the book, make a new page, draw. Blank paper.
-2. **Over a live stream** — while watching the Lofoten harbour, pull your book up over it. The book covers the screen and you draw; **swipe it down whenever you want to look at the harbour again**, then swipe it back up and keep going. Draw the place while you're sitting with it.
+### 3.2 Why it's here
 
-The second one is the idea that makes this app specific rather than generic.
+The urge to scroll is often just an urge to do *something* with your hands and eyes. Drawing consumes exactly that impulse, but produces something instead of consuming something.
 
-### 4.2 Why it's here
-
-The urge to scroll is often just an urge to do *something* with your hands and eyes. Drawing consumes exactly that impulse, but produces something instead of consuming something. It's absorbing without being extractive.
-
-And a drawing made while sitting with a live view is a genuinely lovely thing to have: not a screenshot, not a filter — something you sat and drew, of a real place, at a real moment. Datestamped and located, it becomes a kind of diary.
-
-### 4.3 Data model & entry paths
+### 3.3 Data model & entry paths
 
 ```mermaid
 flowchart LR
     subgraph model ["Data model"]
         direction TB
         BOOK["📕 Book<br/>id · title · created"]
-        PAGE["📄 Page<br/>id · index · thumbnail<br/>created · source_stream?"]
+        PAGE["📄 Page<br/>id · index · thumbnail<br/>created"]
         STROKE["✏️ Stroke<br/>points[] · colour · width<br/>tool · pressure[]"]
         BOOK -->|"1 : many"| PAGE
         PAGE -->|"1 : many"| STROKE
     end
 
-    subgraph entry ["Two entry paths"]
+    subgraph entry ["Entry path"]
         direction TB
         E1["Home → Drawing Book"] --> P1["Page grid"]
         P1 --> C1["Canvas<br/>opaque, blank"]
-
-        E2["Live Feed → pull up book"] --> P2["Pick page or new"]
-        P2 --> C2["Canvas<br/>sheet over the stream<br/>swipe down to peek"]
-        C2 -->|"saved"| TAG["Page tagged with<br/>stream id + timestamp"]
     end
 
     C1 --> STROKE
-    C2 --> STROKE
-    TAG --> PAGE
 
-    style C2 fill:#3f6b52,color:#fff
     style C1 fill:#3f5a6b,color:#fff
 ```
 
-### 4.4 Tools
+### 3.4 Tools
 
 Kept deliberately small. This is a sketchbook, not Procreate — a huge toolbar is its own kind of overwhelm.
 
@@ -491,22 +344,7 @@ Kept deliberately small. This is a sketchbook, not Procreate — a huge toolbar 
 
 Deliberately **excluded from v1:** layers, shapes, text, fill/bucket, selection. Each can arrive later if genuinely missed.
 
-### 4.5 Book-over-stream mode — specifics
-
-The book behaves like a **sheet of paper you pull up over the screen.** It is opaque — not see-through — and the gesture to look at the view again is to push it back down.
-
-- Invoked from the in-stream menu (`Open drawing book`)
-- The book slides up from the bottom and covers the stream. You draw on it normally, with the full tool set.
-- **Swipe down (or tap the handle)** and the sheet drops away to reveal the live view. Look as long as you like. Swipe up and you're back on the same page, exactly where you left off.
-- The sheet can also rest **half-open** — view on top, paper on the bottom half — for people who'd rather see both at once than keep swapping. This is the closest thing to the old tracing idea and is probably how most people will actually use it.
-- **Freeze frame** button on the stream: pause the live view so a moving subject holds still while you draw it. Essential in practice — you can't draw a bird that has flown away. This works whether the sheet is up, down, or half-open.
-- Saving captures: the stroke data, a rendered PNG, and metadata (`source_stream`, timestamp, the place's local time)
-- On save, the page shows in the book with a small location chip: `Reine, Norway · 3:14am local`
-- **Available on every stream**, regardless of source — no capability flags, no exceptions (see §3.7)
-
-**Why a sheet and not a translucent layer:** it dodges YouTube's overlay restriction completely, it works identically on all streams, and it's genuinely easier to draw on — tracing through a semi-transparent page sounds nice but is fiddly on a phone-sized screen with a finger. The half-open rest position gets most of the benefit without any of the problems.
-
-### 4.6 Technical notes
+### 3.5 Technical notes
 
 **Store strokes as vectors, never as a bitmap.** Each stroke is a list of points with pressure and a tool descriptor. Consequences, all good:
 - Undo/redo is free (pop the list)
@@ -526,15 +364,15 @@ Render with Jetpack Compose `Canvas`, drawing each stroke as a smoothed `Path`. 
 
 ---
 
-## 5. Feature 4 — FOMO
+## 4. Feature 3 — FOMO
 
-### 5.1 The idea
+### 4.1 The idea
 
 **F**ear **O**f **M**issing **O**ut — named plainly, because naming the feeling is half of defusing it.
 
 A single daily digest of what's actually going on: what's trending, what happened, what everyone's talking about. Read it in three minutes and the itch — *but what if something happened* — is gone, without opening Instagram to find out.
 
-### 5.2 The design tension (read this before building it)
+### 4.2 The design tension (read this before building it)
 
 > **This feature is the most dangerous one in the app.**
 >
@@ -557,7 +395,7 @@ The emotional target is the feeling of finishing a newspaper — done, informed,
 
 Held to that shape, it isn't a dopamine machine and doesn't need to be hidden or rationed — **it ships on by default.** The rules above are what keep it that shape; they're guardrails against future feature-creep, not a reason to distrust the feature. The specific things that would turn it into a feed are: adding pull-to-refresh, adding engagement counts, adding images by default, or making it update more than once a day. Any one of those is the moment to stop.
 
-### 5.3 Where the content comes from
+### 4.3 Where the content comes from
 
 **Not from Instagram.** Instagram has no public API for trends. Scraping it violates their ToS, breaks constantly, and would put the whole app at risk. This is a firm constraint, not a preference.
 
@@ -574,7 +412,7 @@ Instead, aggregate public sources — which in practice surface the same cultura
 
 **Clustering.** The same story appears in five sources with five headlines. Cluster them into one card per topic, with a plain neutral summary and links out to sources. Roughly: fetch → normalise → embed/keyword-match into clusters → rank by cross-source presence → take the top ~18 → publish.
 
-### 5.4 Card format
+### 4.4 Card format
 
 ```
 ┌────────────────────────────────────────┐
@@ -593,7 +431,7 @@ Instead, aggregate public sources — which in practice surface the same cultura
 
 Neutral tone throughout. No hype, no "you won't BELIEVE," no urgency. The point is to defuse the feeling, not stoke it.
 
-### 5.5 Technical notes
+### 4.5 Technical notes
 
 **All aggregation happens server-side.** A scheduled job (once daily) fetches, clusters, and writes a **static digest JSON** to object storage / CDN. The client just downloads and renders it.
 
@@ -611,11 +449,10 @@ Client: fetch on app open if the cached digest is stale, cache in Room, render. 
 
 **Native Android — Kotlin + Jetpack Compose.**
 
-Not React Native, not Flutter. The reason is specific: three of the four features are deep native integrations —
+Not React Native, not Flutter. The reason is specific: two of the three features are deep native integrations —
 
 - a `SYSTEM_ALERT_WINDOW` overlay drawn over another app, plus a long-lived foreground service surviving OEM battery managers (Feature 1),
-- long-running live video playback with quality/bandwidth control and true immersive full-screen (Feature 2),
-- high-frequency touch capture and canvas rendering (Feature 3).
+- high-frequency touch capture and canvas rendering (Feature 2).
 
 Every one of those would be written as a native module anyway under a cross-platform framework, so the framework would add a bridge, a performance tax on the drawing canvas, and an extra debugging layer — in exchange for portability to a platform (iOS) where the flagship feature can't be built the same way regardless. Cross-platform buys nothing here.
 
@@ -625,13 +462,11 @@ Every one of those would be written as a native module anyway under a cross-plat
 | Architecture | MVVM, single-activity, Compose Navigation |
 | Local DB | Room (essays, passes, pages, strokes, digest cache) |
 | Preferences | DataStore |
-| Video | Media3 / ExoPlayer + `android-youtube-player` for YouTube sources |
-| Maps | MapLibre GL Native + free vector tiles |
 | Background | Foreground Service (monitor) + WorkManager (watchdog, digest fetch) |
 | DI | Hilt |
-| Backend | None required for v1 beyond two static JSON files on a CDN (stream registry, FOMO digest) + a small scheduled job to produce them |
+| Backend | None required for v1 beyond one static JSON file on a CDN (FOMO digest) + a small scheduled job to produce it |
 
-**Note on the backend:** it is deliberately almost nothing. No user accounts, no user data server-side, no sync. Two static files and a cron job. Running cost is **$0/month** on free tiers (see `tech_stack.md` §12), and privacy is trivially defensible because there is no user data to defend.
+**Note on the backend:** it is deliberately almost nothing. No user accounts, no user data server-side, no sync. One static file and a cron job. Running cost is **$0/month** on free tiers (see `tech_stack.md` §12), and privacy is trivially defensible because there is no user data to defend.
 
 ### 6.2 Permissions ledger
 
@@ -642,7 +477,7 @@ Every one of those would be written as a native module anyway under a cross-plat
 | `POST_NOTIFICATIONS` | Foreground service notification, gentle nudges | Service can't run reliably on Android 13+ | Standard runtime prompt |
 | Battery optimisation exemption | Keeping the monitor alive | Monitor gets killed; app "randomly stops working" | Ask after onboarding, with OEM-specific instructions |
 | `RECEIVE_BOOT_COMPLETED` | Restarting the monitor after reboot | Budget tracking stops until app is opened | Install-time, no prompt |
-| `INTERNET` | Live streams, digest, registry | Features 2 & 4 offline-only | Install-time, no prompt |
+| `INTERNET` | FOMO digest | Feature 3 offline-only (cached) | Install-time, no prompt |
 
 **Onboarding principle:** ask for one permission at a time, each on its own screen, each with a one-line reason and a visual of what it does. Requesting five permissions on one screen reads as malware.
 
@@ -660,7 +495,6 @@ Worth noting: dropping the accessibility service (§2.7) also drops the scariest
 | Drawings | Room + internal storage | Never, unless the user taps Export/Share |
 | App usage stats | Room, on-device | Never |
 | Pass history | Room, on-device | Never |
-| Stream registry | Fetched from CDN | Download only — no identifying request data |
 | FOMO digest | Fetched from CDN | Download only |
 
 Say this plainly in-app, in one screen, in the user's language — not buried in a policy. An app that watches which apps you open has to *earn* trust explicitly, and "your essays never leave this phone" is the sentence that does it.
@@ -680,9 +514,8 @@ flowchart TD
     ONBOARD --> HOME["🏠 Home<br/>time left today · quick actions"]
 
     HOME --> F1["Pass"]
-    HOME --> F2["Live Feed"]
-    HOME --> F3["Drawing Book"]
-    HOME --> F4["FOMO"]
+    HOME --> F2["Drawing Book"]
+    HOME --> F3["FOMO"]
     HOME --> SET["Settings"]
 
     F1 --> F1A["Status & history"]
@@ -690,18 +523,11 @@ flowchart TD
     F1B --> F1C["Word + editor"]
     F1C --> F1D["Pass issued"]
 
-    F2 --> F2A["World map"]
-    F2A --> F2B["Stream, full screen"]
-    F2B --> F2C["Clear Mode"]
-    F2B --> F2D["Pull up drawing book"]
-    F2B --> F2E["Favourites"]
+    F2 --> F2A["Book / page grid"]
+    F2A --> F2B["Canvas"]
 
-    F3 --> F3A["Book / page grid"]
-    F3A --> F3B["Canvas"]
-    F2D --> F3B
-
-    F4 --> F4A["Today's digest"]
-    F4A --> F4B["Caught up ✓"]
+    F3 --> F3A["Today's digest"]
+    F3A --> F3B["Caught up ✓"]
 
     SET --> S1["Watched apps"]
     SET --> S2["Budget & essay length"]
@@ -721,10 +547,10 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    M["MVP<br/>─────<br/>Feature 1 complete<br/>Live Feed, list-only<br/>~15 streams<br/>Onboarding + permissions"]
-    V1["v1.0<br/>─────<br/>Map UI<br/>Clear Mode<br/>~50 streams<br/>Drawing Book<br/>standalone"]
-    V15["v1.5<br/>─────<br/>Book sheet<br/>over streams<br/>Freeze frame<br/>FOMO digest"]
-    V2["v2.0<br/>─────<br/>iOS<br/>Stream auto-discovery<br/>Stylus polish<br/>Widgets"]
+    M["MVP<br/>─────<br/>Feature 1 complete<br/>Onboarding + permissions"]
+    V1["v1.0<br/>─────<br/>Drawing Book<br/>standalone"]
+    V15["v1.5<br/>─────<br/>FOMO digest"]
+    V2["v2.0<br/>─────<br/>iOS<br/>Stylus polish<br/>Widgets"]
 
     M --> V1 --> V15 --> V2
 
@@ -734,35 +560,33 @@ flowchart LR
     style V2 fill:#4a3f6b,color:#fff
 ```
 
-**MVP scope reasoning.** Feature 1 alone is a complete, useful, shippable product — and it's the one that proves the thesis. Ship it with a minimal Live Feed (a plain list, no map) so there's a door next to the wall from day one, then build outward. Don't wait for the map to ship the wall.
+**MVP scope reasoning.** Feature 1 alone is a complete, useful, shippable product — and it's the one that proves the thesis. Ship it with onboarding and permissions, then build the drawing book and FOMO digest outward.
 
-**iOS in v2, with a warning.** iOS requires the **FamilyControls / Screen Time API**, which needs a special entitlement requested from Apple and is not guaranteed. Even when granted, `ManagedSettings` shields cannot be fully custom — you get a `ShieldConfiguration` with limited styling, and a `ShieldAction` that can open your app. So the flow becomes: shield → tap → our app opens → essay → unshield. Workable, but noticeably less seamless than Android, and dependent on Apple's approval. Features 2, 3, and 4 port cleanly; only Feature 1 is constrained.
+**iOS in v2, with a warning.** iOS requires the **FamilyControls / Screen Time API**, which needs a special entitlement requested from Apple and is not guaranteed. Even when granted, `ManagedSettings` shields cannot be fully custom — you get a `ShieldConfiguration` with limited styling, and a `ShieldAction` that can open your app. So the flow becomes: shield → tap → our app opens → essay → unshield. Workable, but noticeably less seamless than Android, and dependent on Apple's approval. Features 2 and 3 port cleanly; only Feature 1 is constrained.
 
 ### 6.6 Open questions & risks
 
 | # | Question / risk | Notes & leaning |
 |---|---|---|
 | 1 | ~~**Play Store accessibility policy rejection**~~ | **Closed.** `AccessibilityService` dropped entirely; the app runs on `UsageStatsManager`, the unrestricted API every screen-time app uses (§2.7). Cost is ~1s of detection latency, largely recovered by adaptive polling. Store-policy risk is now ordinary. |
-| 2 | ~~**YouTube ToS vs. drawing overlay**~~ | **Closed.** Translucent tracing dropped in favour of a slide-up book sheet (§4.5). No ToS exposure, works on all streams, no per-stream flags. Curation is now free to pick the best streams rather than the most legally permissive ones. |
-| 3 | **Uninstall is the universal bypass** | Unfixable without device-admin, which is heavy-handed, scary, and hard to get past review. **Leaning: accept it.** Optionally offer an opt-in "hard mode" later for users who ask. |
-| 4 | **Do we grade essay quality?** | **Leaning: no.** Length + typed-not-pasted only. Grading requires defining quality, invites an LLM dependency and its cost, and makes the app feel like a hostile teacher. Revisit only if gibberish-typing turns out to be common in testing. |
-| 5 | **Stream reliability** | Streams die weekly. Needs a daily health-check job and a remote registry from day one — not an afterthought. |
-| 6 | **Does FOMO become the problem?** | **Managed, not eliminated.** Scoped to one update per day, 10–20 mostly-text items, hard bottom, no refresh, no engagement counts (§5.2). At that size it's a bulletin, not a feed, and ships on by default. The risk isn't v1 — it's feature-creep later. Treat "can we make it refresh more often?" as a red flag, not an improvement. |
-| 7 | **Monetisation** | Undecided — **and not urgent.** Running cost is $0/month (`tech_stack.md` §12), so the app never *needs* revenue to survive. That removes the usual pressure and keeps every option open: free forever, optional tip, or one-time purchase. **Never ads** — an attention-hygiene app with ads is self-refuting, and with no costs to cover there's no argument for them. |
-| 8 | **OEM battery killers** | **Now the top risk in the app** (§2.7). Xiaomi/Oppo/Vivo/Samsung kill the foreground service and the Pass silently stops working. Needs per-OEM setup guidance, a WorkManager watchdog, self-diagnosis on next open, and testing on a physical device from one of those brands. |
-| 9 | **What's the actual default budget?** | 30 min is a guess. Worth testing — too generous and the wall never appears, too tight and the app gets uninstalled on day one. |
-| 10 | **Does the user watch themselves fail?** | Should the app show usage history/graphs? **Leaning: minimal.** Explicit anti-goal (§1) says no shame metrics. Maybe just "days you stayed under budget," and no downside framing. |
+| 2 | **Uninstall is the universal bypass** | Unfixable without device-admin, which is heavy-handed, scary, and hard to get past review. **Leaning: accept it.** Optionally offer an opt-in "hard mode" later for users who ask. |
+| 3 | **Do we grade essay quality?** | **Leaning: no.** Length + typed-not-pasted only. Grading requires defining quality, invites an LLM dependency and its cost, and makes the app feel like a hostile teacher. Revisit only if gibberish-typing turns out to be common in testing. |
+| 4 | **Does FOMO become the problem?** | **Managed, not eliminated.** Scoped to one update per day, 10–20 mostly-text items, hard bottom, no refresh, no engagement counts (§4.2). At that size it's a bulletin, not a feed, and ships on by default. The risk isn't v1 — it's feature-creep later. Treat "can we make it refresh more often?" as a red flag, not an improvement. |
+| 5 | **Monetisation** | Undecided — **and not urgent.** Running cost is $0/month (`tech_stack.md` §12), so the app never *needs* revenue to survive. That removes the usual pressure and keeps every option open: free forever, optional tip, or one-time purchase. **Never ads** — an attention-hygiene app with ads is self-refuting, and with no costs to cover there's no argument for them. |
+| 6 | **OEM battery killers** | **Now the top risk in the app** (§2.7). Xiaomi/Oppo/Vivo/Samsung kill the foreground service and the Pass silently stops working. Needs per-OEM setup guidance, a WorkManager watchdog, self-diagnosis on next open, and testing on a physical device from one of those brands. |
+| 7 | **What's the actual default budget?** | 30 min is a guess. Worth testing — too generous and the wall never appears, too tight and the app gets uninstalled on day one. |
+| 8 | **Does the user watch themselves fail?** | Should the app show usage history/graphs? **Leaning: minimal.** Explicit anti-goal (§1) says no shame metrics. Maybe just "days you stayed under budget," and no downside framing. |
 
 ---
 
 ## Appendix — Feature summary at a glance
 
-| | The Pass | Live Feed | Drawing Book | FOMO |
-|---|---|---|---|---|
-| **Purpose** | Make reflex-scrolling expensive | Give the urge somewhere calm to go | Absorb the hands-and-eyes impulse | Defuse the "what did I miss" itch |
-| **Costs a pass?** | — | No | No | No |
-| **Works offline?** | Yes, fully | No | Yes | Cached digest only |
-| **Backend needed?** | None | Static stream registry | None | Static daily digest |
-| **On by default?** | Yes | Yes | Yes | Yes |
-| **Biggest risk** | OEM battery killers | Stream rot | Canvas performance at scale | Feature-creep into a feed |
-| **Phase** | MVP | MVP (list) → v1 (map) | v1 → v1.5 (over streams) | v1.5 |
+| | The Pass | Drawing Book | FOMO |
+|---|---|---|---|
+| **Purpose** | Make reflex-scrolling expensive | Absorb the hands-and-eyes impulse | Defuse the "what did I miss" itch |
+| **Costs a pass?** | — | No | No |
+| **Works offline?** | Yes, fully | Yes | Cached digest only |
+| **Backend needed?** | None | None | Static daily digest |
+| **On by default?** | Yes | Yes | Yes |
+| **Biggest risk** | OEM battery killers | Canvas performance at scale | Feature-creep into a feed |
+| **Phase** | MVP | v1 | v1.5 |

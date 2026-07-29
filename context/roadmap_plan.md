@@ -8,7 +8,7 @@
 
 ## How to use this
 
-Twelve phases, ordered by dependency. **Do them in order.** Each one is small enough to finish, and each ends with something you can actually observe working — not "the code is written," but "install it and watch it happen."
+Nine phases, ordered by dependency. **Do them in order.** Each one is small enough to finish, and each ends with something you can actually observe working — not "the code is written," but "install it and watch it happen."
 
 Four rules that make this work:
 
@@ -24,11 +24,10 @@ Each phase follows the same six-part shape: **Goal · Why now · What you'll lea
 | After | You have |
 |-------|----------|
 | **Phase 4** | The core loop works — Instagram gets blocked, an essay unlocks it |
-| **Phase 5** | It survives a real phone (reboots, battery managers, first-run setup) |
-| **Phase 6** | **A complete MVP** you could hand to someone |
-| **Phase 11** | It's on the Play Store |
+| **Phase 5** | **A complete MVP** — survives a real phone and first-run setup |
+| **Phase 8** | It's on the Play Store |
 
-Everything between 6 and 11 makes the app *better*. Phase 6 makes it *exist*.
+Everything between 5 and 8 makes the app *better*. Phase 5 makes it *exist*.
 
 ---
 
@@ -41,24 +40,18 @@ flowchart LR
     P2 --> P3["3<br/>Pass II<br/>essay"]
     P3 --> P4["4<br/>Pass III<br/>the wall"]
     P4 --> P5["5<br/>Survival +<br/>onboarding"]
-    P5 --> P6["6<br/>Live Feed<br/>list"]
-    P6 --> P7["7<br/>Map"]
-    P6 --> P8["8<br/>Drawing<br/>canvas"]
-    P8 --> P9["9<br/>Book over<br/>streams"]
-    P7 -.-> P9
-    P6 --> P10["10<br/>FOMO"]
-    P7 --> P11["11<br/>Launch"]
-    P9 --> P11
-    P10 --> P11
-    P11 --> P12["12<br/>Beyond v1"]
+    P5 --> P6["6<br/>Drawing<br/>canvas"]
+    P5 --> P7["7<br/>FOMO"]
+    P6 --> P8["8<br/>Launch"]
+    P7 --> P8
+    P8 --> P9["9<br/>Beyond v1"]
 
     style P4 fill:#6b5a3f,color:#fff
-    style P5 fill:#5a4a2f,color:#fff
-    style P6 fill:#3f6b52,color:#fff
-    style P11 fill:#4a3f6b,color:#fff
+    style P5 fill:#3f6b52,color:#fff
+    style P8 fill:#4a3f6b,color:#fff
 ```
 
-**Phases 7, 8, and 10 are independent of each other.** Once the MVP ships, do them in whatever order appeals — map, drawing, or digest first, your call.
+**Phases 6 and 7 are independent of each other.** Once the MVP ships, do them in whatever order appeals — drawing or digest first, your call.
 
 ---
 
@@ -306,7 +299,7 @@ This connects Phases 2 and 3 into the actual product. **After this phase the cor
 - [ ] Add a `TYPE_APPLICATION_OVERLAY` view via `WindowManager` from the service
 - [ ] Render it as a `RetroDialog` — cream balloon, centred, two buttons (`design_theme.md` §10)
 - [ ] Wire it to fire the instant the budget hits zero while a watched app is foreground
-- [ ] Two actions: **Write an essay** (opens the app) and **Not worth it** (dismisses, offers the Live Feed)
+- [ ] Two actions: **Write an essay** (opens the app) and **Not now** (dismisses to home screen)
 - [ ] Handle correct dismissal and window cleanup — leaked overlay windows are a real bug class
 
 **The loop**
@@ -327,7 +320,7 @@ Set your budget to 1 minute. Open Instagram. Scroll for a minute. **The wall app
 
 ---
 
-# Phase 5 — Survival & onboarding ⭐
+# Phase 5 — Survival & onboarding ⭐ MVP
 
 ### Goal
 The app survives reboots, OEM battery managers, and a first-time user who has never seen it before.
@@ -371,95 +364,14 @@ Phase 4 works on your desk. This phase makes it work on a stranger's Xiaomi. **T
 - [ ] Watched apps · budget & essay length · reset hour · panic unlocks remaining · **permission health check** · privacy
 
 ### Done when
-Factory-fresh install on a physical Xiaomi or Oppo: complete onboarding, reboot the phone, wait an hour without opening the app — and the budget still tracks correctly. If the OS killed the service, the app *tells you* on next open instead of failing silently.
+Factory-fresh install on a physical Xiaomi or Oppo: complete onboarding, reboot the phone, wait an hour without opening the app — and the budget still tracks correctly. If the OS killed the service, the app *tells you* on next open instead of failing silently. **This completes the MVP.**
 
 ### Reference
 `app_plan.md` §2.6 (edge cases table), §2.7 (OEM warning box), §6.2 (permissions ledger), §6.4 (nav map) · `design_theme.md` §10
 
 ---
 
-# Phase 6 — Live Feed I: streams ⭐ MVP
-
-### Goal
-A list of live streams that play full screen with Clear Mode. **This completes the MVP.**
-
-### Why now
-The wall needs a door next to it. `app_plan.md` is explicit that a wall with no alternative is a wall people uninstall. List-only first — the map is Phase 7 and isn't needed to prove the idea.
-
-### What you'll learn
-- Media3 / ExoPlayer and HLS streaming
-- WebView-based embedding (the YouTube player)
-- Immersive full-screen mode
-- Fetching and caching remote JSON
-
-### Tasks
-
-**The registry**
-- [ ] Hand-curate **~15 excellent streams** for launch — quality over quantity
-- [ ] Write `backend/streams.json` using the schema in `app_plan.md` §3.6
-- [ ] Favour **direct-HLS webcams** where possible — simpler and fully under our control
-- [ ] Publish to CDN at `/v1/streams.json`; bundle a fallback copy in the APK
-- [ ] Write the daily health-check script (HLS manifest ping; YouTube via `videos.list` → `liveBroadcastContent == "live"`)
-- [ ] Add it to the GitHub Actions cron
-
-**Playback**
-- [ ] Media3 + `media3-exoplayer-hls` for direct webcam streams
-- [ ] `android-youtube-player` (official IFrame) for YouTube sources — **never rip the HLS URL**, it's a ToS violation and permanently fragile
-- [ ] Quality selector, auto by default, mobile-data warning, data-saver cap
-
-**The UI**
-- [ ] Stream list using `ListView`, grouped by category
-- [ ] Preview card: name, place, local time, live thumbnail
-- [ ] Full-screen player
-- [ ] **Clear Mode** — all chrome gone, immersive mode, tap-to-reveal for 3s, slow fade not a snap
-- [ ] `FLAG_KEEP_SCREEN_ON` while active; optional auto-dim after 10 min; optional sleep timer
-- [ ] Ambient audio toggle
-- [ ] Favourites
-- [ ] **Live Feed does not cost a pass** — this is the free alternative, not another ration
-
-### Done when
-Open the app with no time left, tap "Not worth it" on the wall, land on the stream list, pick a river, and sit with it full screen in Clear Mode with zero UI on screen. The whole product thesis is now demonstrable to another person.
-
-### Reference
-`app_plan.md` §3 (all), especially §3.4 (Clear Mode), §3.5 (free, not rationed), §3.6 (registry) · `tech_stack.md` §5.2 · `design_theme.md` §8 (streams are a chrome-free exception)
-
----
-
-# Phase 7 — Live Feed II: the map
-
-### Goal
-Browse streams by tapping pins on a calm, dark world map.
-
-### Why now
-The signature interaction, but not required for the MVP to be useful. Ship the list first, add the map once the core loop is proven.
-
-### What you'll learn
-- Integrating a native map SDK into Compose (`AndroidView` interop)
-- Map styling and tile sources
-- Coordinate/marker handling
-
-### Tasks
-- [ ] Add MapLibre GL Native; wrap `MapView` in `AndroidView`
-- [ ] Point it at **OpenFreeMap** tiles (free, unlimited, no API key)
-- [ ] Write a custom map style — **calm and dark**, not a navigation app
-- [ ] Render pins from the registry, coloured by category
-- [ ] Category filter: rivers · coasts · mountains · cities · wildlife · space
-- [ ] Mood filter: calm · alive · dark & quiet
-- [ ] "Surprise me" random pin
-- [ ] Tap pin → preview card → full screen
-- [ ] Frame the map inside a `RetroWindow` (`design_theme.md` §10)
-- [ ] **Expand the registry to ~50 streams**
-- [ ] Verify offline behaviour — bundled registry, cached tiles, graceful failure
-
-### Done when
-Pan to Norway, tap a harbour pin, read its local time on the card, and open it full screen. The map looks calm and dark, and it costs nothing to run.
-
-### Reference
-`app_plan.md` §3.3 (flowchart), §3.6 (registry) · `tech_stack.md` §5.2 (maps)
-
----
-
-# Phase 8 — Drawing Book I: the canvas
+# Phase 6 — Drawing Book I: the canvas
 
 ### Goal
 A multi-page sketchbook you can draw in, with vector strokes and unlimited undo.
@@ -509,43 +421,11 @@ Independent of the map — do this or Phase 7 first, your preference. Needs the 
 Draw a few hundred strokes without lag, undo back to blank, redo forward, close the app, reopen — the page is exactly as you left it. Export a PNG and open it in your gallery.
 
 ### Reference
-`app_plan.md` §4.3 (data model), §4.4 (tools), §4.6 (technical notes) · `design_theme.md` §8 (canvas is chrome-free)
+`app_plan.md` §3.3 (data model), §3.4 (tools), §3.5 (technical notes) · `design_theme.md` §8 (canvas is chrome-free)
 
 ---
 
-# Phase 9 — Drawing Book II: over streams
-
-### Goal
-Pull the drawing book up over a live stream, swipe it down to look at the view, draw the place while sitting with it.
-
-### Why now
-Needs both the canvas (Phase 8) and the player (Phase 6). This is the interaction that makes the app specific rather than generic.
-
-### What you'll learn
-- Bottom-sheet gesture handling in Compose
-- Coordinating two features' lifecycles (player + canvas)
-
-### Tasks
-- [ ] `Open drawing book` in the in-stream menu
-- [ ] **Opaque** sheet slides up over the stream — not translucent (`app_plan.md` §4.5)
-- [ ] Swipe down / tap handle → sheet drops, live view revealed
-- [ ] Swipe up → back to the same page, exactly where you left off
-- [ ] **Half-open rest position** — view on top, paper below. Probably how most people will actually use it
-- [ ] **Freeze frame** — pause the stream so a moving subject holds still. Works at any sheet position
-- [ ] Keep the stream *playing* behind the sheet (drop quality to save bandwidth, don't pause)
-- [ ] Tag saved pages with `source_stream` + timestamp
-- [ ] Location chip on the page: `Reine, Norway · 3:14am local`
-- [ ] Confirm it works on **every** stream — no per-stream capability flags
-
-### Done when
-Watching a harbour, pull up the book, rest it half-open, draw what you see while it's live, freeze the frame to catch a boat, save — and the page shows in your book with the place and local time on it.
-
-### Reference
-`app_plan.md` §4.5 (specifics + why a sheet not a translucent layer), §3.7 (playback while the sheet is up)
-
----
-
-# Phase 10 — FOMO
+# Phase 7 — FOMO
 
 ### Goal
 A finite daily bulletin of what's trending, so quitting the feed doesn't feel like falling behind.
@@ -590,11 +470,11 @@ Independent of Phases 7–9. It's the only feature needing real backend work, so
 Open FOMO, read about 18 items, hit the bottom, see "you're caught up", close it — and reopening the same day still says you're caught up. It should feel like finishing a newspaper.
 
 ### Reference
-`app_plan.md` §5 (all), especially §5.2 (the design tension) · `tech_stack.md` §5.1 (sources), §6 (summarization) · `design_theme.md` §10 (the FOMO empty state)
+`app_plan.md` §4 (all), especially §4.2 (the design tension) · `tech_stack.md` §5.1 (sources), §6 (summarization) · `design_theme.md` §10 (the FOMO empty state)
 
 ---
 
-# Phase 11 — Launch ⭐
+# Phase 8 — Launch ⭐
 
 ### Goal
 On the Play Store.
@@ -631,15 +511,13 @@ Someone who has never met you installs it from the Play Store and successfully w
 
 ---
 
-# Phase 12 — Beyond v1
+# Phase 9 — Beyond v1
 
 Not scheduled. Revisit after the app has real users.
 
 | Candidate | Notes |
 |---|---|
-| **iOS** | Requires the FamilyControls / Screen Time entitlement — a special request to Apple, not guaranteed. Only Feature 1 is constrained; Features 2–4 port cleanly, and the backend is untouched (`tech_stack.md` §11) |
-| **Stream auto-discovery** | YouTube Data API search + auto geo-tagging, replacing pure hand-curation |
-| **Translucent tracing** | The original overlay idea, legal on non-YouTube webcam sources only. Add only if the sheet turns out to be missed (`app_plan.md` §4.5) |
+| **iOS** | Requires the FamilyControls / Screen Time entitlement — a special request to Apple, not guaranteed. Only Feature 1 is constrained; Features 2–3 port cleanly, and the backend is untouched (`tech_stack.md` §11) |
 | **Widgets** | Home-screen time-remaining widget |
 | **Stylus polish** | Tilt, richer pressure curves, per-tool dynamics |
 | **Hard mode** | Opt-in device-admin uninstall protection for users who ask (`app_plan.md` §6.6, risk 3) |
@@ -665,9 +543,8 @@ The live risks from `app_plan.md` §6.6, mapped to where you must confront them:
 | Risk | Phase | What to do about it |
 |---|---|---|
 | **OEM battery killers** — the top risk | **5** | Per-OEM guidance, WorkManager watchdog, self-diagnosis on next open. Test on real Xiaomi/Oppo hardware |
-| **Default budget is a guess** | **6** | 30 min is unvalidated. Once the MVP exists, dogfood it for a fortnight and adjust |
-| **Stream rot** | **6** | Health-check job from day one, not as an afterthought — streams die weekly |
-| **FOMO becoming a feed** | **10** | The constraints in that phase are the mitigation. Watch usage time; if it creeps up, cut the feature |
+| **Default budget is a guess** | **5** | 30 min is unvalidated. Once the MVP exists, dogfood it for a fortnight and adjust |
+| **FOMO becoming a feed** | **7** | The constraints in that phase are the mitigation. Watch usage time; if it creeps up, cut the feature |
 | **Uninstall bypass** | — | Accepted, not fixed. Optional hard mode in Phase 12 |
 | **Monetisation** | — | Not urgent — running cost is $0/month, so the app never *needs* revenue |
 
@@ -677,7 +554,7 @@ The live risks from `app_plan.md` §6.6, mapped to where you must confront them:
 
 Written down so scope creep has an answer:
 
-Layers, shapes, text, or fill in the drawing tools · essay quality grading · social features or sharing to a timeline · user accounts or cloud sync · streaks, scores, or productivity metrics · ads (ever) · translucent stream tracing · stream auto-discovery · iOS.
+Layers, shapes, text, or fill in the drawing tools · essay quality grading · social features or sharing to a timeline · user accounts or cloud sync · streaks, scores, or productivity metrics · ads (ever) · iOS.
 
 ---
 
@@ -690,11 +567,8 @@ Layers, shapes, text, or fill in the drawing tools · essay quality grading · s
 | 2 | Pass I — usage | Budget ticks down and persists | |
 | 3 | Pass II — essay | Essay issues a pass | |
 | 4 | Pass III — the wall | Overlay blocks Instagram | ⭐ Core loop |
-| 5 | Survival + onboarding | Works on a stranger's phone | ⭐ Real-world ready |
-| 6 | Live Feed — list | Streams + Clear Mode | ⭐ **MVP** |
-| 7 | Map | Pins on a calm world map | |
-| 8 | Drawing canvas | Sketchbook with vector strokes | |
-| 9 | Book over streams | Draw the place you're watching | |
-| 10 | FOMO | Daily finite bulletin | |
-| 11 | Launch | Live on Play | ⭐ **Public** |
-| 12 | Beyond v1 | iOS, auto-discovery, tracing | Horizon |
+| 5 | Survival + onboarding | Works on a stranger's phone | ⭐ **MVP** |
+| 6 | Drawing canvas | Sketchbook with vector strokes | |
+| 7 | FOMO | Daily finite bulletin | |
+| 8 | Launch | Live on Play | ⭐ **Public** |
+| 9 | Beyond v1 | iOS, stylus polish, widgets | Horizon |

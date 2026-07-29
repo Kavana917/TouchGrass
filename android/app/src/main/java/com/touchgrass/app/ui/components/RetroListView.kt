@@ -19,7 +19,7 @@ import com.touchgrass.app.ui.theme.RetroTheme
  * Form 7 (§6.2) — the file-listing list view.
  *
  * Column headers as small raised buttons, white rows, navy selection bar.
- * Used by the FOMO digest, essay history and the stream list.
+ * Used by the FOMO digest and essay history.
  *
  * Deliberately NOT a LazyColumn by default: these lists are finite and short
  * by design (§1 — "nothing scrolls forever"). If a caller genuinely needs

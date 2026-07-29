@@ -65,17 +65,12 @@ class SettingsRepository @Inject constructor(
         val PANIC_MONTH = stringPreferencesKey("panic_month")
         val PANIC_USED = intPreferencesKey("panic_used")
         val LAST_SEEN_AT = longPreferencesKey("last_seen_at")
-        val FAVOURITE_STREAMS = stringSetPreferencesKey("favourite_streams")
-        val FEED_AUDIO_ON = booleanPreferencesKey("feed_audio_on")
-        val CUSTOM_STREAMS = stringPreferencesKey("custom_streams")
-        val REMOTE_STREAMS = stringPreferencesKey("remote_streams")
-        val REMOTE_STREAMS_AT = longPreferencesKey("remote_streams_at")
     }
 
     object Defaults {
         /**
          * 30 minutes, from app_plan.md §2.4 — but flagged there as an
-         * unvalidated guess (§6.6, risk 9). Revisit in Phase 6 once the app
+         * unvalidated guess (§6.6, risk 7). Revisit in Phase 5 once the app
          * is dogfoodable: too generous and the wall never appears, too tight
          * and it gets uninstalled on day one.
          */
@@ -305,53 +300,6 @@ class SettingsRepository @Inject constructor(
 
     suspend fun markSeen() {
         context.dataStore.edit { it[Keys.LAST_SEEN_AT] = System.currentTimeMillis() }
-    }
-
-    val favouriteStreams: Flow<Set<String>> =
-        context.dataStore.data.map { it[Keys.FAVOURITE_STREAMS] ?: emptySet() }
-
-    suspend fun toggleFavouriteStream(streamId: String) {
-        context.dataStore.edit { prefs ->
-            val current = prefs[Keys.FAVOURITE_STREAMS] ?: emptySet()
-            prefs[Keys.FAVOURITE_STREAMS] =
-                if (streamId in current) current - streamId else current + streamId
-        }
-    }
-
-    /** Ambient sound. Off by default — silence is the safer default here. */
-    val feedAudioOn: Flow<Boolean> =
-        context.dataStore.data.map { it[Keys.FEED_AUDIO_ON] ?: false }
-
-    suspend fun setFeedAudioOn(value: Boolean) {
-        context.dataStore.edit { it[Keys.FEED_AUDIO_ON] = value }
-    }
-
-    /** Streams the user added themselves, as a raw JSON array. */
-    val customStreamsJson: Flow<String> =
-        context.dataStore.data.map { it[Keys.CUSTOM_STREAMS] ?: "[]" }
-
-    suspend fun setCustomStreamsJson(json: String) {
-        context.dataStore.edit { it[Keys.CUSTOM_STREAMS] = json }
-    }
-
-    /**
-     * The last registry we successfully downloaded, kept verbatim.
-     *
-     * Cached rather than re-fetched on every launch so the feed opens
-     * instantly and works on a plane. Empty until the first successful
-     * fetch, at which point it supersedes the bundled asset.
-     */
-    val remoteStreamsJson: Flow<String> =
-        context.dataStore.data.map { it[Keys.REMOTE_STREAMS] ?: "" }
-
-    val remoteStreamsFetchedAt: Flow<Long> =
-        context.dataStore.data.map { it[Keys.REMOTE_STREAMS_AT] ?: 0L }
-
-    suspend fun setRemoteStreamsJson(json: String) {
-        context.dataStore.edit { prefs ->
-            prefs[Keys.REMOTE_STREAMS] = json
-            prefs[Keys.REMOTE_STREAMS_AT] = System.currentTimeMillis()
-        }
     }
 
     suspend fun clearPerAppBudget(packageName: String) {

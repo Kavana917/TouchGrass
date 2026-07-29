@@ -132,7 +132,7 @@ fun ComponentGalleryScreen(
                         weights = listOf(2f, 1f, 1f)
                     ) {
                         RetroListRow(listOf("essay_01", "Text", "1 KB"))
-                        RetroListRow(listOf("lofoten", "Stream", "—"), selected = true)
+                        RetroListRow(listOf("digest_07", "Digest", "—"), selected = true)
                         RetroListRow(listOf("page_04", "Drawing", "8 KB"))
                     }
                 }
