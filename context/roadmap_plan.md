@@ -187,7 +187,7 @@ This is the foundation of Feature 1 and the hardest native work in the project. 
 - Android permissions: normal, runtime, and **special access** (the Settings hand-off kind)
 - `UsageStatsManager` and the `queryEvents()` API
 - Foreground services and why Android needs a persistent notification
-- Coroutines and `Flow` for a repeating background tick
+- Coroutines and `Flow` for a ryepeating background tick
 - Room entities, DAOs, and reactive queries
 
 > **The permission here is not a normal dialog.** `PACKAGE_USAGE_STATS` sends the user to a Settings screen and hopes they come back. You detect whether it was granted with `AppOpsManager`, not with the usual permission API. This surprises everyone the first time.

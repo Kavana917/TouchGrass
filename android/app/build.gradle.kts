@@ -88,6 +88,7 @@ dependencies {
     implementation(libs.androidx.media3.ui)
     implementation(libs.youtube.player)
     implementation(libs.coil.compose)
+    implementation(libs.okhttp)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)

@@ -1,22 +1,7 @@
 {
-  "version": 5,
-  "note": "SKYLINE entries hold a webcam PAGE url and resolve to a manifest at play time, because Skyline's manifest URLs carry a token regenerated on every request. That is what makes them durable where hardcoded lists rot. Browse skylinewebcams.com, copy any cam's page URL, and add it via Live Feed > Add a stream.",
+  "version": 6,
+  "note": "NOT the real registry — that one is published by server/refresh_streams.py and fetched at runtime (see RegistryClient.kt). This asset is only the floor: what the feed shows in the second before the first fetch lands, and if the phone has no network. Adding streams here does nothing for existing installs; edit server/channels.json instead.",
   "streams": [
-    {
-      "id": "skyline-venice-grand-canal",
-      "title": "Grand Canal",
-      "place": "Venice, Italy",
-      "lat": 45.4408,
-      "lng": 12.3155,
-      "category": "CITY",
-      "moods": ["CALM", "ALIVE"],
-      "source": "SKYLINE",
-      "streamRef": "https://www.skylinewebcams.com/en/webcam/italia/veneto/venezia/canal-grande.html",
-      "hasAudio": false,
-      "timezone": "Europe/Rome",
-      "attribution": "SkylineWebcams",
-      "lastVerified": "2026-07-29"
-    },
     {
       "id": "diagnostic-hls",
       "title": "HLS test stream",

@@ -68,6 +68,8 @@ class SettingsRepository @Inject constructor(
         val FAVOURITE_STREAMS = stringSetPreferencesKey("favourite_streams")
         val FEED_AUDIO_ON = booleanPreferencesKey("feed_audio_on")
         val CUSTOM_STREAMS = stringPreferencesKey("custom_streams")
+        val REMOTE_STREAMS = stringPreferencesKey("remote_streams")
+        val REMOTE_STREAMS_AT = longPreferencesKey("remote_streams_at")
     }
 
     object Defaults {
@@ -330,6 +332,26 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setCustomStreamsJson(json: String) {
         context.dataStore.edit { it[Keys.CUSTOM_STREAMS] = json }
+    }
+
+    /**
+     * The last registry we successfully downloaded, kept verbatim.
+     *
+     * Cached rather than re-fetched on every launch so the feed opens
+     * instantly and works on a plane. Empty until the first successful
+     * fetch, at which point it supersedes the bundled asset.
+     */
+    val remoteStreamsJson: Flow<String> =
+        context.dataStore.data.map { it[Keys.REMOTE_STREAMS] ?: "" }
+
+    val remoteStreamsFetchedAt: Flow<Long> =
+        context.dataStore.data.map { it[Keys.REMOTE_STREAMS_AT] ?: 0L }
+
+    suspend fun setRemoteStreamsJson(json: String) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.REMOTE_STREAMS] = json
+            prefs[Keys.REMOTE_STREAMS_AT] = System.currentTimeMillis()
+        }
     }
 
     suspend fun clearPerAppBudget(packageName: String) {

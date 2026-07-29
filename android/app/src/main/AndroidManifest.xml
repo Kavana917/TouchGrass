@@ -37,6 +37,17 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!--
+        Everything the Live Feed does over the network: fetching the stream
+        registry, playing HLS through Media3, and loading the YouTube IFrame
+        embed in a WebView. Later, the FOMO digest too.
+
+        Normal permission - granted at install, no runtime prompt, no dialog
+        the user ever sees. But without it every one of those fails silently
+        with a generic error, which looks exactly like a dead stream.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
         Lets us list launchable apps for the watched-app picker WITHOUT
         QUERY_ALL_PACKAGES, which is a sensitive permission Play scrutinises
         heavily. We only need apps that appear in the launcher.

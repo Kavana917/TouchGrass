@@ -16,32 +16,45 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * The stream registry: what ships with the app, plus whatever the user adds.
+ * The stream registry: whatever is live right now, plus whatever the user adds.
  *
- * ⚠️ WHY USER-ADDED STREAMS EXIST AT ALL:
+ * ⚠️ THREE SOURCES, IN PRIORITY ORDER, AND THE ORDER IS THE DESIGN:
  *
- * The registry is hand-curated by design (app_plan.md §3.6), and curation
- * means *verifying a stream actually plays* — which cannot be done from
- * inside the build. The first shipped registry pinned YouTube video IDs and
- * every one of them was dead on arrival, because 24/7 streams get restarted
- * and issued a new ID.
+ *  1. The PUBLISHED registry, rebuilt every few hours by a scheduled job and
+ *     cached here after the first successful fetch. This is the real one.
+ *  2. The BUNDLED asset, used only until that first fetch lands, or when the
+ *     phone has no network. It is a floor, not a source of truth.
+ *  3. The user's own streams, always appended.
  *
- * Two fixes, both here: bundled entries now reference CHANNELS rather than
- * videos, and the person holding the phone can add a stream by pasting a
- * link and immediately seeing whether it works.
+ * The first shipped registry pinned YouTube video IDs and was dead within
+ * days (commit edb57f6): 24/7 streams restart constantly and are reissued a
+ * new ID each time. Curation cannot fix that, because the rot happens after
+ * the build — which is why the live half of the registry now comes down the
+ * wire and only the *channel* list is curated (server/channels.json).
+ *
+ * User-added streams stay, and matter for the same reason they always did:
+ * the person holding the phone is the only one who can verify a stream
+ * actually plays on it.
  */
 @Singleton
 class StreamRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val settings: SettingsRepository
+    private val settings: SettingsRepository,
+    private val registryClient: RegistryClient
 ) {
 
     private val bundled = MutableStateFlow<List<Stream>>(emptyList())
 
-    /** Bundled first, then the user's own. */
+    /** Published registry if we have one, otherwise bundled; then the user's own. */
     val streams: Flow<List<Stream>> =
-        combine(bundled, settings.customStreamsJson) { built, customJson ->
-            built + parseArray(runCatching { JSONArray(customJson) }.getOrNull())
+        combine(
+            bundled,
+            settings.remoteStreamsJson,
+            settings.customStreamsJson
+        ) { built, remoteJson, customJson ->
+            val published = parseRegistry(remoteJson)
+            val base = published.ifEmpty { built }
+            base + parseArray(runCatching { JSONArray(customJson) }.getOrNull())
         }
 
     val favourites: Flow<Set<String>> = settings.favouriteStreams
@@ -52,8 +65,34 @@ class StreamRepository @Inject constructor(
         }
 
     suspend fun load() {
-        if (bundled.value.isNotEmpty()) return
-        bundled.value = withContext(Dispatchers.IO) { readBundled() }
+        if (bundled.value.isEmpty()) {
+            bundled.value = withContext(Dispatchers.IO) { readBundled() }
+        }
+        refreshIfStale()
+    }
+
+    /**
+     * Pulls a fresh registry if the cached one has aged out.
+     *
+     * Six hours matches the workflow's schedule — checking more often only
+     * costs battery to re-download something that hasn't changed. A failure
+     * is silent by design: the cached registry is still perfectly good, and
+     * "couldn't refresh the list" is not news the user needs while they are
+     * trying to look at a river.
+     */
+    suspend fun refreshIfStale(force: Boolean = false) {
+        val fetchedAt = settings.remoteStreamsFetchedAt.first()
+        val age = System.currentTimeMillis() - fetchedAt
+        if (!force && fetchedAt > 0L && age < REFRESH_INTERVAL_MS) return
+
+        val json = registryClient.fetch() ?: return
+
+        // Only replace the cache if the download actually parses into
+        // streams. A truncated response or an HTML error page must never
+        // blank out a registry that was working a moment ago.
+        if (parseRegistry(json).isNotEmpty()) {
+            settings.setRemoteStreamsJson(json)
+        }
     }
 
     suspend fun toggleFavourite(streamId: String) {
@@ -95,8 +134,16 @@ class StreamRepository @Inject constructor(
 
     private fun readBundled(): List<Stream> = runCatching {
         val raw = context.assets.open(ASSET_NAME).bufferedReader().use { it.readText() }
-        parseArray(JSONObject(raw).optJSONArray("streams"))
+        parseRegistry(raw)
     }.getOrDefault(emptyList())
+
+    /** Parses a `{ "streams": [...] }` document. Empty on anything unexpected. */
+    private fun parseRegistry(json: String): List<Stream> {
+        if (json.isBlank()) return emptyList()
+        return runCatching {
+            parseArray(JSONObject(json).optJSONArray("streams"))
+        }.getOrDefault(emptyList())
+    }
 
     private fun parseArray(array: JSONArray?): List<Stream> {
         if (array == null) return emptyList()
@@ -146,5 +193,8 @@ class StreamRepository @Inject constructor(
 
     private companion object {
         const val ASSET_NAME = "streams.json"
+
+        /** Matches the refresh cadence in .github/workflows/refresh-streams.yml. */
+        const val REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000L
     }
 }
