@@ -1,5 +1,6 @@
 package com.touchgrass.app.feature.feed
 
+import android.view.ViewGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -116,8 +117,17 @@ private fun YouTubePlayer(
         YouTubePlayerView(context).apply {
             // We initialize by hand below, to pass IFramePlayerOptions.
             enableAutomaticInitialization = false
-            // The view is 16:9 by default; the feed is full-bleed.
-            matchParent()
+
+            // The view is 16:9 by default and the feed is full-bleed, so this
+            // has to be overridden — but NOT via the library's matchParent().
+            // That helper mutates the EXISTING layoutParams in place, and a
+            // view constructed in code rather than inflated from XML has none
+            // yet, so it dereferences null and takes the app down. Assigning a
+            // fresh set does the same job safely.
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
         }
     }
 
