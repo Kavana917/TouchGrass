@@ -1,18 +1,21 @@
 package com.touchgrass.app.feature.feed
 
-import android.view.ViewGroup
-import android.webkit.CookieManager
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFramePlayerOptions
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import com.touchgrass.app.core.feed.Stream
 import com.touchgrass.app.core.feed.StreamResolver
 import com.touchgrass.app.core.feed.StreamSource
@@ -26,12 +29,8 @@ import com.touchgrass.app.core.feed.StreamSource
  *  - HLS and SKYLINE go through Media3, which we control completely.
  *    SKYLINE resolves its manifest first, because the URL is tokenised and
  *    regenerated per request — see StreamResolver.
- *  - YouTube goes through the official IFrame embed. Extracting YouTube's
+ *  - YouTube goes through the official IFrame player. Extracting YouTube's
  *    underlying HLS would be simpler and would violate their terms.
- *
- * ⚠️ YouTube embeds are refused outright on some devices (error 152) even
- * with a correct origin and a Chrome user agent. The shipped registry no
- * longer depends on them; the path stays for user-added streams.
  */
 @Composable
 fun StreamPlayer(
@@ -67,136 +66,125 @@ fun StreamPlayer(
         }
 
         StreamSource.YOUTUBE,
-        StreamSource.YOUTUBE_CHANNEL -> YouTubeWebPlayer(stream, audioOn, paused, modifier)
+        StreamSource.YOUTUBE_CHANNEL ->
+            YouTubePlayer(stream, audioOn, paused, onError, onReady, modifier)
     }
 }
 
 /**
- * Plays a YouTube stream inside the official IFrame embed.
+ * Plays a YouTube stream through android-youtube-player.
  *
- * ⚠️ TWO THINGS LEARNED THE HARD WAY, BOTH ENCODED HERE:
+ * ⚠️ WHY A LIBRARY AND NOT A WEBVIEW WE CONTROL:
  *
- * 1. THE HTML WRAPPER IS NOT OPTIONAL. Pointing a WebView straight at the
- *    embed URL gives "Error 153 — Video player configuration error".
- *    YouTube rejects embeds arriving with no origin, and a bare loadUrl()
- *    has none. Loading a real HTML document through loadDataWithBaseURL()
- *    with a youtube.com base supplies the origin and the player configures.
+ * This used to be a hand-rolled WebView holding an `<iframe>`, and it spent
+ * three commits losing a fight it could not win: error 153 (no origin), then
+ * error 152 (refused embed) even after supplying a youtube.com base URL and
+ * masquerading as mobile Chrome. Every fix addressed a symptom.
  *
- * 2. `embed/live_stream?channel=…` NO LONGER RESOLVES. It's the obvious way
- *    to avoid pinning video IDs, and it loads far enough to render
- *    YouTube's own "Video unavailable" — which is how we know the wrapper
- *    is right and the endpoint is the dead part.
+ * The root cause is that YouTube's embed is not an iframe you point at a
+ * URL — it is the IFrame Player API, a JavaScript handshake. The library
+ * does that handshake: it serves a local page, loads `iframe_api`,
+ * constructs a real `YT.Player`, and bridges its events back to Kotlin.
+ * tech_stack.md §5.2 has said "Required" about this library since before the
+ * WebView was written, and the dependency has been declared and unused the
+ * whole time.
  *
- * Even with both fixed, some devices still refuse embeds with error 152.
+ * The other win is diagnostic. A WebView reports failure as pixels — an
+ * error painted inside a page we can't read. The listener reports it as a
+ * typed enum, which is the difference between "a black rectangle" and
+ * "VIDEO_NOT_PLAYABLE_IN_EMBEDDED_PLAYER". Same argument as HlsPlayerView.
+ *
+ * ⚠️ CONTROLS STAY ON. YouTube's terms for embedded players forbid hiding or
+ * obscuring the controls, so `controls(1)` is not a preference. Clear Mode
+ * (app_plan.md §3.4) may hide OUR chrome over a YouTube stream, never theirs.
  */
 @Composable
-private fun YouTubeWebPlayer(
+private fun YouTubePlayer(
     stream: Stream,
     audioOn: Boolean,
     paused: Boolean,
+    onError: (String) -> Unit,
+    onReady: () -> Unit,
     modifier: Modifier
 ) {
-    AndroidView(
-        modifier = modifier,
-        factory = { ctx ->
-            WebView(ctx).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.mediaPlaybackRequiresUserGesture = false
-                settings.loadWithOverviewMode = true
-                settings.useWideViewPort = true
-                setBackgroundColor(android.graphics.Color.BLACK)
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-                // Android WebView advertises "; wv" in its user agent and
-                // YouTube refuses embeds from it. Present as mobile Chrome.
-                settings.userAgentString = CHROME_USER_AGENT
-
-                CookieManager.getInstance().setAcceptCookie(true)
-                CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-
-                // Required for HTML5 video in a WebView at all.
-                webChromeClient = WebChromeClient()
-                webViewClient = WebViewClient()
-
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
-
-                loadEmbed(stream, audioOn && stream.hasAudio)
-                tag = "${stream.streamRef}:${audioOn && stream.hasAudio}"
-            }
-        },
-        update = { webView ->
-            val wanted = "${stream.streamRef}:${audioOn && stream.hasAudio}"
-            if (webView.tag != wanted) {
-                webView.tag = wanted
-                webView.loadEmbed(stream, audioOn && stream.hasAudio)
-            } else {
-                webView.command(if (paused) "pauseVideo" else "playVideo")
-            }
-        },
-        onRelease = { webView ->
-            webView.loadUrl("about:blank")
-            webView.destroy()
+    // Keyed on the stream so switching streams builds a fresh player rather
+    // than reusing one that is mid-handshake with the previous video.
+    val playerView = remember(stream.id) {
+        YouTubePlayerView(context).apply {
+            // We initialize by hand below, to pass IFramePlayerOptions.
+            enableAutomaticInitialization = false
+            // The view is 16:9 by default; the feed is full-bleed.
+            matchParent()
         }
-    )
-}
-
-private fun WebView.loadEmbed(stream: Stream, audioOn: Boolean) {
-    loadDataWithBaseURL(YOUTUBE_ORIGIN, embedHtml(stream, audioOn), "text/html", "utf-8", null)
-}
-
-/** Sends an IFrame API command to the embedded player. */
-private fun WebView.command(func: String) {
-    evaluateJavascript(
-        """
-        (function() {
-          var f = document.getElementById('player');
-          if (f && f.contentWindow) {
-            f.contentWindow.postMessage(
-              JSON.stringify({event:'command', func:'$func', args:[]}), '*'
-            );
-          }
-        })();
-        """.trimIndent(),
-        null
-    )
-}
-
-private fun embedHtml(stream: Stream, audioOn: Boolean): String {
-    val base = when (stream.source) {
-        StreamSource.YOUTUBE_CHANNEL ->
-            "https://www.youtube.com/embed/live_stream?channel=${stream.streamRef}"
-        else ->
-            "https://www.youtube.com/embed/${stream.streamRef}"
     }
 
-    val src = base +
-        (if (base.contains('?')) "&" else "?") +
-        "autoplay=1&mute=${if (audioOn) 0 else 1}&playsinline=1" +
-        "&rel=0&modestbranding=1&enablejsapi=1&origin=$YOUTUBE_ORIGIN"
+    var player by remember(stream.id) { mutableStateOf<YouTubePlayer?>(null) }
 
-    return """
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-              html, body { margin:0; padding:0; height:100%; background:#000; overflow:hidden; }
-              iframe { width:100%; height:100%; border:0; display:block; }
-            </style>
-          </head>
-          <body>
-            <iframe id="player" src="$src" frameborder="0"
-              allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
-          </body>
-        </html>
-    """.trimIndent()
+    DisposableEffect(stream.id) {
+        val listener = object : AbstractYouTubePlayerListener() {
+            override fun onReady(youTubePlayer: YouTubePlayer) {
+                player = youTubePlayer
+                youTubePlayer.loadVideo(stream.streamRef, 0f)
+                onReady()
+            }
+
+            override fun onError(
+                youTubePlayer: YouTubePlayer,
+                error: PlayerConstants.PlayerError
+            ) {
+                onError(error.friendlyMessage())
+            }
+        }
+
+        playerView.initialize(
+            listener,
+            IFramePlayerOptions.Builder()
+                .controls(1)        // required by YouTube's embed terms
+                .autoplay(1)
+                .mute(if (audioOn && stream.hasAudio) 1 else 0)
+                .rel(0)             // no "up next" grid when a stream ends
+                .modestBranding(1)
+                .build()
+        )
+
+        // The view is a LifecycleEventObserver: this is what pauses playback
+        // when the app goes to the background, instead of a river quietly
+        // streaming data all night in someone's pocket.
+        lifecycleOwner.lifecycle.addObserver(playerView)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(playerView)
+            playerView.release()
+        }
+    }
+
+    // Mute rather than stop, so toggling audio doesn't restart the stream.
+    LaunchedEffect(player, audioOn, paused) {
+        val current = player ?: return@LaunchedEffect
+        if (audioOn && stream.hasAudio) current.unMute() else current.mute()
+        if (paused) current.pause() else current.play()
+    }
+
+    AndroidView(modifier = modifier, factory = { playerView })
 }
 
-private const val YOUTUBE_ORIGIN = "https://www.youtube.com"
+/** Turns the player's error enum into something a person can act on. */
+private fun PlayerConstants.PlayerError.friendlyMessage(): String = when (this) {
+    PlayerConstants.PlayerError.VIDEO_NOT_PLAYABLE_IN_EMBEDDED_PLAYER ->
+        "This channel doesn't allow its stream to play outside YouTube."
 
-private const val CHROME_USER_AGENT =
-    "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) " +
-        "Chrome/120.0.0.0 Mobile Safari/537.36"
+    PlayerConstants.PlayerError.VIDEO_NOT_FOUND ->
+        "That stream no longer exists."
+
+    PlayerConstants.PlayerError.INVALID_PARAMETER_IN_REQUEST ->
+        "That stream's ID looks wrong."
+
+    PlayerConstants.PlayerError.HTML_5_PLAYER ->
+        "The video player failed to start on this device."
+
+    PlayerConstants.PlayerError.UNKNOWN ->
+        "Playback failed for an unknown reason."
+}
