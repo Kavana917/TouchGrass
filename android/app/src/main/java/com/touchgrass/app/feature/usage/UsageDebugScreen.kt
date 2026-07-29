@@ -44,11 +44,10 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Phase 2 debug screen — scaffolding, not product.
+ * Developer diagnostics — poll logs, test wall, manual monitor controls.
  *
- * The real Pass status screen and watched-app picker land in Phase 5. This
- * exists so the monitor can be *observed working* on a real device: pick an
- * app, set a tiny budget, open that app, come back, watch the number move.
+ * Not part of the product surface. Reachable from Home → Developer in debug
+ * builds only.
  */
 @Composable
 fun UsageDebugScreen(
@@ -58,6 +57,7 @@ fun UsageDebugScreen(
     onOpenPermissions: () -> Unit = {},
     onOpenBudget: () -> Unit = {},
     onOpenGallery: () -> Unit = {},
+    onBack: () -> Unit = {},
     viewModel: UsageDebugViewModel = hiltViewModel()
 ) {
     val state by viewModel.budgetState.collectAsStateWithLifecycle()
@@ -400,6 +400,7 @@ fun UsageDebugScreen(
                         RetroButton(text = "Permissions", onClick = onOpenPermissions)
                         RetroButton(text = "Gallery", onClick = onOpenGallery)
                     }
+                    RetroButton(text = "Back to home", onClick = onBack)
                 }
 
                 Box(Modifier.height(Dimens.ContentPadding))

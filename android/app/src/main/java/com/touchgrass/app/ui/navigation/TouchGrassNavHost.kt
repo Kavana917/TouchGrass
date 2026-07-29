@@ -8,13 +8,18 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.touchgrass.app.BuildConfig
 import com.touchgrass.app.feature.budget.BudgetSettingsScreen
 import com.touchgrass.app.feature.essay.EssayDetailScreen
 import com.touchgrass.app.feature.essay.EssayHistoryScreen
 import com.touchgrass.app.feature.essay.EssayScreen
 import com.touchgrass.app.feature.gallery.ComponentGalleryScreen
+import com.touchgrass.app.feature.home.HomeScreen
 import com.touchgrass.app.feature.onboarding.OnboardingScreen
 import com.touchgrass.app.feature.permissions.PermissionsScreen
+import com.touchgrass.app.feature.settings.OemHelpScreen
+import com.touchgrass.app.feature.settings.PrivacyScreen
+import com.touchgrass.app.feature.settings.WatchedAppsScreen
 import com.touchgrass.app.feature.usage.UsageDebugScreen
 
 /**
@@ -25,12 +30,16 @@ import com.touchgrass.app.feature.usage.UsageDebugScreen
  */
 object Routes {
     const val ONBOARDING = "onboarding"
-    const val USAGE = "usage"
+    const val HOME = "home"
+    const val DEBUG = "debug"
     const val ESSAY = "essay?targetPackage={targetPackage}"
     const val BUDGET = "budget"
     const val ESSAY_HISTORY = "essay_history"
     const val ESSAY_DETAIL = "essay_detail/{essayId}"
     const val PERMISSIONS = "permissions"
+    const val WATCHED_APPS = "watched_apps"
+    const val OEM_HELP = "oem_help"
+    const val PRIVACY = "privacy"
     const val GALLERY = "gallery"
 
     fun essayDetail(id: Long) = "essay_detail/$id"
@@ -53,32 +62,57 @@ fun TouchGrassNavHost(
     NavHost(
         navController = navController,
         startDestination = when {
-            // Arriving from the wall goes straight to the essay. Making
-            // someone navigate there themselves after being interrupted
-            // would be friction on top of friction.
             startOnEssay -> Routes.essay(returnToPackage)
             !setupComplete -> Routes.ONBOARDING
-            else -> Routes.USAGE
+            else -> Routes.HOME
         },
         modifier = modifier
     ) {
         composable(Routes.ONBOARDING) {
             OnboardingScreen(
                 onFinished = {
-                    navController.navigate(Routes.USAGE) {
+                    navController.navigate(Routes.HOME) {
                         popUpTo(Routes.ONBOARDING) { inclusive = true }
                     }
                 }
             )
         }
-        composable(Routes.USAGE) {
-            UsageDebugScreen(
+        composable(Routes.HOME) {
+            HomeScreen(
                 onWriteEssay = { navController.navigate(Routes.essay()) },
                 onOpenHistory = { navController.navigate(Routes.ESSAY_HISTORY) },
-                onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) },
+                onOpenWatchedApps = { navController.navigate(Routes.WATCHED_APPS) },
                 onOpenBudget = { navController.navigate(Routes.BUDGET) },
-                onOpenGallery = { navController.navigate(Routes.GALLERY) }
+                onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) },
+                onOpenOemHelp = { navController.navigate(Routes.OEM_HELP) },
+                onOpenPrivacy = { navController.navigate(Routes.PRIVACY) },
+                onOpenDebug = {
+                    if (BuildConfig.DEBUG) {
+                        navController.navigate(Routes.DEBUG)
+                    }
+                }
             )
+        }
+        if (BuildConfig.DEBUG) {
+            composable(Routes.DEBUG) {
+                UsageDebugScreen(
+                    onWriteEssay = { navController.navigate(Routes.essay()) },
+                    onOpenHistory = { navController.navigate(Routes.ESSAY_HISTORY) },
+                    onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) },
+                    onOpenBudget = { navController.navigate(Routes.BUDGET) },
+                    onOpenGallery = { navController.navigate(Routes.GALLERY) },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+        }
+        composable(Routes.WATCHED_APPS) {
+            WatchedAppsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.OEM_HELP) {
+            OemHelpScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.PRIVACY) {
+            PrivacyScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.PERMISSIONS) {
             PermissionsScreen(
@@ -102,12 +136,10 @@ fun TouchGrassNavHost(
         ) {
             EssayScreen(
                 onDone = {
-                    // Paid the toll from the wall? Go back to where you were.
-                    // Otherwise just close the screen.
                     if (returnToPackage != null) {
                         onReturnToApp(returnToPackage)
                     } else if (!navController.popBackStack()) {
-                        navController.navigate(Routes.USAGE) {
+                        navController.navigate(Routes.HOME) {
                             popUpTo(0) { inclusive = true }
                         }
                     }

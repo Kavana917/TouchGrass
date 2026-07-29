@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.touchgrass.app.core.data.settings.SettingsRepository
 import com.touchgrass.app.core.permissions.AppPermissions
+import com.touchgrass.app.core.permissions.PermissionId
 import com.touchgrass.app.core.permissions.PermissionInfo
 import com.touchgrass.app.core.usage.UsageMonitorService
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,9 +30,16 @@ enum class OnboardingPane {
     IDEA,
     PICK_APPS,
     SET_BUDGET,
-    PERMISSIONS,
+    PERM_USAGE,
+    PERM_OVERLAY,
+    PERM_NOTIFICATIONS,
+    PERM_BATTERY,
     PRIVACY,
-    DONE
+    DONE;
+
+    companion object {
+        val COUNT = entries.size
+    }
 }
 
 data class OnboardingApp(
@@ -54,6 +62,14 @@ data class OnboardingState(
 
     val requiredPermissionsGranted: Boolean
         get() = permissions.filter { it.required }.all { it.granted }
+
+    fun permissionFor(pane: OnboardingPane) = when (pane) {
+        OnboardingPane.PERM_USAGE -> PermissionId.USAGE_ACCESS
+        OnboardingPane.PERM_OVERLAY -> PermissionId.DRAW_OVER_APPS
+        OnboardingPane.PERM_NOTIFICATIONS -> PermissionId.NOTIFICATIONS
+        OnboardingPane.PERM_BATTERY -> PermissionId.BATTERY_UNRESTRICTED
+        else -> null
+    }
 }
 
 @HiltViewModel
@@ -125,8 +141,11 @@ class OnboardingViewModel @Inject constructor(
         val nextPane = when (current.pane) {
             OnboardingPane.IDEA -> OnboardingPane.PICK_APPS
             OnboardingPane.PICK_APPS -> OnboardingPane.SET_BUDGET
-            OnboardingPane.SET_BUDGET -> OnboardingPane.PERMISSIONS
-            OnboardingPane.PERMISSIONS -> OnboardingPane.PRIVACY
+            OnboardingPane.SET_BUDGET -> OnboardingPane.PERM_USAGE
+            OnboardingPane.PERM_USAGE -> OnboardingPane.PERM_OVERLAY
+            OnboardingPane.PERM_OVERLAY -> OnboardingPane.PERM_NOTIFICATIONS
+            OnboardingPane.PERM_NOTIFICATIONS -> OnboardingPane.PERM_BATTERY
+            OnboardingPane.PERM_BATTERY -> OnboardingPane.PRIVACY
             OnboardingPane.PRIVACY -> OnboardingPane.DONE
             OnboardingPane.DONE -> OnboardingPane.DONE
         }
@@ -140,7 +159,7 @@ class OnboardingViewModel @Inject constructor(
         }
 
         _state.update { it.copy(pane = nextPane) }
-        if (nextPane == OnboardingPane.PERMISSIONS) refreshPermissions()
+        if (nextPane.name.startsWith("PERM_")) refreshPermissions()
     }
 
     fun back() {
@@ -150,8 +169,11 @@ class OnboardingViewModel @Inject constructor(
                     OnboardingPane.IDEA -> OnboardingPane.IDEA
                     OnboardingPane.PICK_APPS -> OnboardingPane.IDEA
                     OnboardingPane.SET_BUDGET -> OnboardingPane.PICK_APPS
-                    OnboardingPane.PERMISSIONS -> OnboardingPane.SET_BUDGET
-                    OnboardingPane.PRIVACY -> OnboardingPane.PERMISSIONS
+                    OnboardingPane.PERM_USAGE -> OnboardingPane.SET_BUDGET
+                    OnboardingPane.PERM_OVERLAY -> OnboardingPane.PERM_USAGE
+                    OnboardingPane.PERM_NOTIFICATIONS -> OnboardingPane.PERM_OVERLAY
+                    OnboardingPane.PERM_BATTERY -> OnboardingPane.PERM_NOTIFICATIONS
+                    OnboardingPane.PRIVACY -> OnboardingPane.PERM_BATTERY
                     OnboardingPane.DONE -> OnboardingPane.PRIVACY
                 }
             )

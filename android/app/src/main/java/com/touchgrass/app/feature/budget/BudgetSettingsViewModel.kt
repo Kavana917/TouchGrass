@@ -6,11 +6,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.touchgrass.app.core.data.settings.BudgetMode
 import com.touchgrass.app.core.data.settings.SettingsRepository
+import com.touchgrass.app.core.usage.UsageStatsProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -25,6 +27,7 @@ data class WatchedAppBudget(
 data class BudgetSettingsState(
     val mode: BudgetMode = BudgetMode.SHARED,
     val dailyBudget: Int = SettingsRepository.Defaults.DAILY_BUDGET_MINUTES,
+    val pendingBudget: Int? = null,
     val passMinutes: Int = SettingsRepository.Defaults.PASS_MINUTES,
     val essayWords: Int = SettingsRepository.Defaults.ESSAY_WORDS,
     val resetHour: Int = SettingsRepository.Defaults.RESET_HOUR,
@@ -39,19 +42,28 @@ class BudgetSettingsViewModel @Inject constructor(
 
     val state: StateFlow<BudgetSettingsState> =
         combine(
-            settings.budgetMode,
-            settings.dailyBudgetMinutes,
-            settings.watchedPackages,
-            settings.perAppBudgets,
+            combine(
+                settings.budgetMode,
+                settings.dailyBudgetMinutes,
+                settings.pendingBudget
+            ) { mode, daily, pending -> Triple(mode, daily, pending) },
+            combine(
+                settings.watchedPackages,
+                settings.perAppBudgets
+            ) { watched, perApp -> watched to perApp },
             combine(
                 settings.passMinutes,
                 settings.essayWords,
                 settings.resetHour
             ) { pass, words, hour -> Triple(pass, words, hour) }
-        ) { mode, daily, watched, perApp, (pass, words, hour) ->
+        ) { budget, watchedPair, toll ->
+            val (mode, daily, pending) = budget
+            val (watched, perApp) = watchedPair
+            val (pass, words, hour) = toll
             BudgetSettingsState(
                 mode = mode,
                 dailyBudget = daily,
+                pendingBudget = pending?.first,
                 passMinutes = pass,
                 essayWords = words,
                 resetHour = hour,
@@ -59,8 +71,6 @@ class BudgetSettingsViewModel @Inject constructor(
                     WatchedAppBudget(
                         packageName = pkg,
                         label = labelFor(pkg),
-                        // An app with no explicit limit inherits the daily
-                        // budget, so switching modes never strands one at 0.
                         minutes = perApp[pkg] ?: daily,
                         explicit = perApp.containsKey(pkg)
                     )
@@ -82,11 +92,13 @@ class BudgetSettingsViewModel @Inject constructor(
     }
 
     fun setDailyBudget(minutes: Int) = viewModelScope.launch {
-        settings.setDailyBudgetMinutes(minutes)
+        val todayKey = UsageStatsProvider.budgetDayKey(settings.resetHour.first())
+        settings.setDailyBudgetMinutes(minutes, todayKey)
     }
 
     fun adjustDailyBudget(delta: Int) = viewModelScope.launch {
-        settings.setDailyBudgetMinutes(state.value.dailyBudget + delta)
+        val todayKey = UsageStatsProvider.budgetDayKey(settings.resetHour.first())
+        settings.setDailyBudgetMinutes(state.value.dailyBudget + delta, todayKey)
     }
 
     fun setAppBudget(packageName: String, minutes: Int) = viewModelScope.launch {

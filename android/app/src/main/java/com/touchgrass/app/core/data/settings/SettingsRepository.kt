@@ -65,6 +65,8 @@ class SettingsRepository @Inject constructor(
         val PANIC_MONTH = stringPreferencesKey("panic_month")
         val PANIC_USED = intPreferencesKey("panic_used")
         val LAST_SEEN_AT = longPreferencesKey("last_seen_at")
+        val LAST_MONITOR_HEARTBEAT = longPreferencesKey("last_monitor_heartbeat")
+        val NOTIFICATION_GRACE_ENABLED = booleanPreferencesKey("notification_grace_enabled")
     }
 
     object Defaults {
@@ -300,6 +302,27 @@ class SettingsRepository @Inject constructor(
 
     suspend fun markSeen() {
         context.dataStore.edit { it[Keys.LAST_SEEN_AT] = System.currentTimeMillis() }
+    }
+
+    /** Updated on every successful monitor poll — used for gap detection. */
+    val lastMonitorHeartbeatAt: Flow<Long> =
+        context.dataStore.data.map { it[Keys.LAST_MONITOR_HEARTBEAT] ?: 0L }
+
+    suspend fun recordMonitorHeartbeat() {
+        context.dataStore.edit {
+            it[Keys.LAST_MONITOR_HEARTBEAT] = System.currentTimeMillis()
+        }
+    }
+
+    /**
+     * When enabled, resuming a watched app with a spent budget gets 60 seconds
+     * before the wall appears (app_plan.md §2.6) — enough to read a DM.
+     */
+    val notificationGraceEnabled: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.NOTIFICATION_GRACE_ENABLED] ?: true }
+
+    suspend fun setNotificationGraceEnabled(value: Boolean) {
+        context.dataStore.edit { it[Keys.NOTIFICATION_GRACE_ENABLED] = value }
     }
 
     suspend fun clearPerAppBudget(packageName: String) {

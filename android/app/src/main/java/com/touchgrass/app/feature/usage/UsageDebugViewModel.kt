@@ -39,12 +39,7 @@ data class InstalledApp(
 )
 
 /**
- * Drives the Phase 2 debug screen.
- *
- * This screen is scaffolding — the real Pass status screen and the watched-app
- * picker arrive in Phase 5's onboarding. Its job right now is to let us
- * *watch the numbers move* on a real device, which is the only way to know
- * the monitor actually works.
+ * Drives the developer diagnostics screen.
  */
 @HiltViewModel
 class UsageDebugViewModel @Inject constructor(

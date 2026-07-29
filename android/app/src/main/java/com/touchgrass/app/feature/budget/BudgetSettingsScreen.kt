@@ -103,6 +103,12 @@ fun BudgetSettingsScreen(
                             "you actually notice.",
                         style = RetroTheme.typography.bodySmall
                     )
+                    state.pendingBudget?.let { pending ->
+                        BodyText(
+                            "Raises to $pending min at your next reset.",
+                            style = RetroTheme.typography.bodySmall
+                        )
+                    }
                 }
             } else {
                 RetroWindow(

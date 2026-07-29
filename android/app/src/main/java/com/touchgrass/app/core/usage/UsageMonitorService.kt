@@ -51,6 +51,7 @@ class UsageMonitorService : Service() {
     @Inject lateinit var provider: UsageStatsProvider
     @Inject lateinit var wallOverlay: WallOverlayManager
     @Inject lateinit var diagnostics: MonitorDiagnostics
+    @Inject lateinit var notificationGrace: NotificationGrace
 
     /** Guards against re-showing the 2-minute warning on every poll. */
     private var warnedForDay: String? = null
@@ -170,7 +171,10 @@ class UsageMonitorService : Service() {
         val remaining = state.budgetFor(foreground)?.remainingMinutes
             ?: state.remainingMinutes
 
-        val shouldShow = watchedInForeground && state.isSpentFor(foreground)
+        val spent = state.isSpentFor(foreground)
+        notificationGrace.onForegroundChange(foreground, watched, spent)
+
+        val shouldShow = watchedInForeground && spent && !notificationGrace.isActive()
 
         handleWall(
             shouldShow = shouldShow,
@@ -206,6 +210,8 @@ class UsageMonitorService : Service() {
             screenOn = screenOn,
             wallError = wallOverlay.lastError
         )
+
+        settings.recordMonitorHeartbeat()
 
         return state.urgency.pollIntervalMillis
     }

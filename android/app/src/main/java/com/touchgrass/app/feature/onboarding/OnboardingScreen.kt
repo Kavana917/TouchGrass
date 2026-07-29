@@ -82,14 +82,18 @@ fun OnboardingScreen(
         ) {
             RetroWindow(
                 title = "TouchGrass Setup",
-                statusText = "Step ${state.pane.ordinal + 1} of 5"
+                statusText = "Step ${state.pane.ordinal + 1} of ${OnboardingPane.COUNT}"
             ) {
                 when (state.pane) {
                     OnboardingPane.IDEA -> IdeaPane()
                     OnboardingPane.PICK_APPS -> PickAppsPane(state, viewModel)
                     OnboardingPane.SET_BUDGET -> BudgetPane(state, viewModel)
-                    OnboardingPane.PERMISSIONS -> PermissionsPane(
+                    OnboardingPane.PERM_USAGE,
+                    OnboardingPane.PERM_OVERLAY,
+                    OnboardingPane.PERM_NOTIFICATIONS,
+                    OnboardingPane.PERM_BATTERY -> SinglePermissionPane(
                         state = state,
+                        permissionId = state.permissionFor(state.pane)!!,
                         onGrant = { id ->
                             if (id == PermissionId.NOTIFICATIONS &&
                                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
@@ -233,48 +237,41 @@ private fun BudgetPane(
 }
 
 @Composable
-private fun PermissionsPane(
+private fun SinglePermissionPane(
     state: OnboardingState,
+    permissionId: PermissionId,
     onGrant: (PermissionId) -> Unit
 ) {
-    PixelText("Permissions", style = RetroTheme.typography.heading)
-    BodyText(
-        "TouchGrass needs some access that looks alarming. Here's exactly " +
-            "what each one does — and what it can't do."
-    )
-
-    state.permissions.forEach { permission ->
-        GrooveSeparator()
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            PixelText(
-                text = if (permission.granted) "✓" else "○",
-                color = if (permission.granted) {
-                    RetroTheme.colors.bodyText
-                } else {
-                    RetroTheme.colors.surfaceShadow
-                }
-            )
-            PixelText(text = permission.title, modifier = Modifier.weight(1f), maxLines = 1)
-        }
-        BodyText(permission.reason, style = RetroTheme.typography.bodySmall)
-        if (!permission.granted) {
-            RetroButton(
-                text = "Grant",
-                primary = permission.required,
-                onClick = { onGrant(permission.id) }
-            )
-        }
+    val permission = state.permissions.firstOrNull { it.id == permissionId }
+    if (permission == null) {
+        BodyText("Loading…")
+        return
     }
 
-    if (!state.requiredPermissionsGranted) {
-        GrooveSeparator()
-        BodyText(
-            "You can continue without these, but the Pass won't do anything " +
-                "until they're on.",
-            style = RetroTheme.typography.bodySmall
+    PixelText(permission.title, style = RetroTheme.typography.heading)
+    BodyText(permission.reason)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        PixelText(
+            text = if (permission.granted) "✓ granted" else "not granted yet",
+            color = if (permission.granted) {
+                RetroTheme.colors.bodyText
+            } else {
+                RetroTheme.colors.surfaceShadow
+            }
+        )
+    }
+    if (!permission.granted) {
+        PixelText(
+            text = permission.ifDenied,
+            color = RetroTheme.colors.surfaceShadow
+        )
+        RetroButton(
+            text = "Grant",
+            primary = permission.required,
+            onClick = { onGrant(permission.id) }
         )
     }
 }
